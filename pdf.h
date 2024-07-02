@@ -72,7 +72,7 @@ class hitable_pdf : public pdf {
     // 夹角为钝角，光源在物体背面，届不到
     if (dot(direction, normal) < 0) return -1;
     // 光源面积
-    double light_area = (343 - 213) * (332 - 227);
+    double light_area = (85 - 30) * (355 - 300);
     // 单位向量巧妙计算夹角
     double light_cosine = fabs(direction.y());
     // 如果光源和物体表面平行，也算届不到
@@ -84,8 +84,8 @@ class hitable_pdf : public pdf {
   virtual vec3 generate() override {
     // 强势硬编码，接管光线处理
     // 光源上随机一点
-    vec3 on_light = vec3(jyorandengine.jyoRandGetReal<double>(213, 343), 554,
-                         jyorandengine.jyoRandGetReal<double>(227, 332));
+    vec3 on_light = vec3(500, jyorandengine.jyoRandGetReal<double>(30, 85),
+                         jyorandengine.jyoRandGetReal<double>(300, 355));
     // 接触点到光源的射线
     vec3 to_light = on_light - p;
     // 计算接触点到光源上一点的平方

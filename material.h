@@ -65,14 +65,19 @@ class lambertian : public material {
     // srec.skip_pdf = true;
     // return true;
     
-
     // 光源采样与球体玻璃混合采样
-    mixture_pdf mixed_pdf(std::make_shared<mixture_pdf> (std::make_shared<hitable_pdf>(rec.p, rec.normal),
-                          std::make_shared<cosine_pdf>(rec.normal), 0.8),
-                          std::make_shared<sphere_dielectric_pdf>(rec.p, rec.normal), 0.95);
-    srec.out_ray = ray(rec.p, mixed_pdf.generate(), r_in.time());
+    // mixture_pdf mixed_pdf(std::make_shared<mixture_pdf> (std::make_shared<hitable_pdf>(rec.p, rec.normal),
+    //                       std::make_shared<cosine_pdf>(rec.normal), 0.8),
+    //                       std::make_shared<sphere_dielectric_pdf>(rec.p, rec.normal), 0.95);
+    // srec.out_ray = ray(rec.p, mixed_pdf.generate(), r_in.time());
+    // srec.attenuation = textureptr->value(rec.u, rec.v, rec.p);
+    // srec.pdf = mixed_pdf.value(srec.out_ray.direction());
+    // srec.skip_pdf = false;
+
+    hitable_pdf light_pdf(rec.p, rec.normal);
+    srec.out_ray = ray(rec.p, light_pdf.generate(), r_in.time());
     srec.attenuation = textureptr->value(rec.u, rec.v, rec.p);
-    srec.pdf = mixed_pdf.value(srec.out_ray.direction());
+    srec.pdf = light_pdf.value(srec.out_ray.direction());
     srec.skip_pdf = false;
     
     // 球体玻璃采样
@@ -210,9 +215,9 @@ class diffuse_light : public material {
   virtual vec3 emitted(const ray& r_in, const hit_record& rec, double u,
                        double v, const vec3& p) const override {
     // 保证光源只向下发射光线
-    if (dot(vec3(0, -1, 0), r_in.direction()) < 0.0)
+    // if (dot(vec3(0, -1, 0), r_in.direction()) < 0.0)
       return textureptr->value(u, v, p);
-    return vec3(0, 0, 0);
+    // return vec3(0, 0, 0);
   }
 };
 

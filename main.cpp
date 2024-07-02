@@ -22,6 +22,7 @@ const double PI = 3.141592653;
 #include "stb_image.h"
 #include "texture.h"
 #include "transformation.h"
+#include "tiny_ldt.h"
 
 using namespace std;
 
@@ -73,44 +74,44 @@ vec3 randomCosineDirection() {
   return vec3(x, y, z);
 }
 
+tiny_ldt<float>::light ldt;
+
+
+
 // 颜色着色
 vec3 color(const ray& in, int depth) {
   hit_record rec;
   // 减少误差，-0.00001也可以是交点
-  if (world.hitanythingbvh(in, 0.001, DBL_MAX, rec)) {
+  if (world.hitanything(in, 0.001, DBL_MAX, rec)) {
     scatter_record srec;
     vec3 emitted = rec.mat_ptr->emitted(in, rec, rec.u, rec.v, rec.p);
-    if (depth < 50 && rec.mat_ptr->scatter(in, rec, srec)) {
+    if (depth < 2 && rec.mat_ptr->scatter(in, rec, srec)) {
       // 金属和玻璃材质跳过pdf
       if (srec.skip_pdf)
         return srec.attenuation * color(srec.out_ray, depth + 1);
 
       // 散射光线概率密度函数
       double scatteringpdf = rec.mat_ptr->scattering_pdf(in, rec, srec.out_ray);
-      if (srec.pdf <= 0.0) return emitted;
+      // 一些光源照射不到的地方，返回-1
+      if (srec.pdf == -1)
+        return emitted;
       return emitted + scatteringpdf * srec.attenuation *
                            color(srec.out_ray, depth + 1) / srec.pdf;
     } else {
       // 直视光源则可以看到光源原本的颜色
       // if (!depth) emitted.make_unit_vector();
-      return emitted;
+      return emitted/abs(dot(unit_vector(in.direction()-in.origin()), unit_vector(vec3(-1, 0, 0))));
     }
   } else {
+    // 啥也没打到
     return vec3(0, 0, 0);
-    // 天空
-    // // 将射线in单位化，让其长度为1
-    // vec3 unit_direction = unit_vector(in.direction());
-    // // 单位化后的射线的y的取值范围为[-1,1]，将其+1再除以2转化为[0,1]
-    // double t = 0.5 * (unit_direction.y() + 1.0);
-    // // 进行颜色插值
-    // return (1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
   }
   exit(0);
 }
 
 std::vector<shared_ptr<hitable>> worldlist;
 void buildWorld() {
-  texture* whitelightptr = new constant_texture(vec3(50, 50, 50));
+  texture* whitelightptr = new constant_texture(vec3(2, 2, 2));
   texture* mikuptr = new constant_texture(vec3(0.223, 0.773, 0.733));
   texture* redptr = new constant_texture(vec3(0.65, 0.05, 0.05));
   texture* whiteptr = new constant_texture(vec3(0.73, 0.73, 0.73));
@@ -134,37 +135,30 @@ void buildWorld() {
   unsigned char* tex_data = stbi_load("earthmap.jpg", &nx, &ny, &nn, 0);
   texture* imagetextureptr = new image_texture(tex_data, nx, ny);
 
-  worldlist.emplace_back(
-      new rectangle_yz(0, 555, 0, 555, 555, new lambertian(redptr)));
-  worldlist.emplace_back(
-      new rectangle_yz(0, 555, 0, 555, 0, new lambertian(greenptr)));
-  worldlist.emplace_back(new rectangle_xz(213, 343, 227, 332, 554,
+  // worldlist.emplace_back(
+  //     new rectangle_yz(0, 555, 0, 555, 555, new lambertian(whiteptr)));
+  // worldlist.emplace_back(
+  //     new rectangle_yz(0, 555, 0, 555, 0, new lambertian(greenptr)));
+  // worldlist.emplace_back(new rectangle_xz(213, 343, 227, 332, 554,
+  //                                        new diffuse_light(whitelightptr)));
+  worldlist.emplace_back(new rectangle_yz(30, 85, 300, 355, 500,
                                           new diffuse_light(whitelightptr)));
+  // worldlist.emplace_back(
+  //     new rectangle_xz(0, 555, 0, 555, 555, new lambertian(whiteptr)));
   worldlist.emplace_back(
-      new rectangle_xz(0, 555, 0, 555, 555, new lambertian(whiteptr)));
-  worldlist.emplace_back(
-      new rectangle_xz(0, 555, 0, 555, 0, new lambertian(whiteptr)));
-  worldlist.emplace_back(
-      new rectangle_xy(0, 555, 0, 555, 555, new lambertian(whiteptr)));
+     new rectangle_xz(0, 555, 0, 555, 0, new lambertian(whiteptr)));
+  // worldlist.emplace_back(
+  //     new rectangle_xy(0, 555, 0, 555, 555, new lambertian(whiteptr)));
+  // worldlist.emplace_back(
+  //     new sphere(vec3(190, 90, 190), 90, new dielectric(1.5)));
+
   // worldlist.emplace_back(new translate(
   //     new rotate_y(
-  //         new box(vec3(0, 0, 0), vec3(165, 165, 165), new
-  //         lambertian(whiteptr)), -18),
-  //     vec3(130, 0, 65)));
-  worldlist.emplace_back(
-      new sphere(vec3(190, 90, 190), 90, new dielectric(1.5)));
+  //         new box(vec3(0, 0, 0), vec3(165, 330, 165), new lambertian(whiteptr)),
+  //         15),
+  //     vec3(265, 0, 295)));
 
-  worldlist.emplace_back(new translate(
-      new rotate_y(
-          new box(vec3(0, 0, 0), vec3(165, 330, 165), new lambertian(whiteptr)),
-          15),
-      vec3(265, 0, 295)));
-
-  // 从世界列表中创建bvh树
-  shared_ptr<hitable> rootptr;
-  bvh_node(worldlist, rootptr);
-  world = hitable_list(rootptr);
-  // world = hitable_list(worldlist);
+  world = hitable_list(worldlist);
 }
 
 int getfileline() {
@@ -182,6 +176,26 @@ int getfileline() {
 }
 
 int main() {
+  
+  std::string err;
+  std::string warn;
+  if (!tiny_ldt<float>::load_ldt("ARCOS3_60712332.LDT", err, warn, ldt)) {
+    cout << "failed" << endl;
+  }
+  if (!err.empty()) 
+    cout << err << endl;
+  if (!warn.empty())
+    cout << warn << endl;
+  
+  int cnt = 0;
+  cout << ldt.dc << endl;
+  cout << ldt.dg << endl;
+  for(auto p:ldt.angles_c){
+    cout << p << " ";
+  }
+    
+  system("pause");
+
   // 是否重新渲染
   int startoveragain = 1;
 
@@ -194,14 +208,17 @@ int main() {
     mout.open("output.PPM", ios::app);
 
   // 画布的长
-  int nx = 1000;
+  int nx = 600;
   // 画布的宽
-  int ny = 500;
+  int ny = 300;
   // 画布某一点的采样数量
-  int ns = 100;
+  int ns = 30;
 
   buildWorld();
-  vec3 lookfrom(278, 278, -800), lookat(278, 278, 0);
+  // 正常视角
+  // vec3 lookfrom(208, 75, -200), lookat(298, 75, 0);
+  // 俯视
+  vec3 lookfrom(505, 300, 327), lookat(504.99, 0, 326.999999);
   camera cam(lookfrom, lookat, 40, double(nx) / double(ny), 0.0, 10.0, 0.0,
              1.0);
 
@@ -222,7 +239,7 @@ int main() {
   int sqrtns = int(sqrt(ns));
   double resqrtns = 1.0 / sqrtns;
   for (int j = sj; j >= 0; j--) {
-    cout << "loading..." << 100 * (1.0 - double(j) / double(ny)) << "%";
+    cout << "loading..." << 100 * (1.0 - double(j) / double(ny)) << "%" << endl;
     int starti = pauseflag ? si : 0;
     pauseflag = 0;
     for (int i = starti; i < nx; i++) {
