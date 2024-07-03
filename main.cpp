@@ -192,7 +192,7 @@ int main() {
   
   std::string err;
   std::string warn;
-  if (!tiny_ldt<float>::load_ldt("ARCOS3_60712332.LDT", err, warn, ldt)) {
+  if (!tiny_ldt<float>::load_ldt("photometry\\ARCOS3_60712332.LDT", err, warn, ldt)) {
     cout << "failed" << endl;
   }
   if (!err.empty()) 
