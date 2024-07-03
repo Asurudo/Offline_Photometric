@@ -75,8 +75,20 @@ vec3 randomCosineDirection() {
 }
 
 tiny_ldt<float>::light ldt;
+vector<vector<float>> intensityDis;
 
-
+float getIntesiy(float C, float gamma){
+  assert(C>=0 && C<=2*M_PI && gamma>=0 && gamma<=M_PI);
+  int Cindex = floor(C/M_PI*180.0/ldt.dc);
+  int gammaindex = floor(gamma/M_PI*180.0/ldt.dg);
+  if(gamma==0.0 || gamma==180.0)
+    return intensityDis[Cindex][gammaindex];
+  float d = 0.0;
+  while(d+ldt.dg<=gamma/M_PI*180.0)
+    d += ldt.dg;
+  float a = 1.0-(gamma/M_PI*180.0-d)/ldt.dg;
+  return a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1];
+}
 
 // 颜色着色
 vec3 color(const ray& in, int depth) {
@@ -85,7 +97,7 @@ vec3 color(const ray& in, int depth) {
   if (world.hitanything(in, 0.001, DBL_MAX, rec)) {
     scatter_record srec;
     vec3 emitted = rec.mat_ptr->emitted(in, rec, rec.u, rec.v, rec.p);
-    if (depth < 2 && rec.mat_ptr->scatter(in, rec, srec)) {
+    if (depth < 5 && rec.mat_ptr->scatter(in, rec, srec)) {
       // 金属和玻璃材质跳过pdf
       if (srec.skip_pdf)
         return srec.attenuation * color(srec.out_ray, depth + 1);
@@ -100,7 +112,8 @@ vec3 color(const ray& in, int depth) {
     } else {
       // 直视光源则可以看到光源原本的颜色
       // if (!depth) emitted.make_unit_vector();
-      return emitted/abs(dot(unit_vector(in.direction()-in.origin()), unit_vector(vec3(-1, 0, 0))));
+      vec3 v = unit_vector(-in.direction());
+      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(v.x()))/abs(dot(unit_vector(in.direction()-in.origin()), unit_vector(vec3(-1, 0, 0))))/(85 - 30) / (355 - 300);
     }
   } else {
     // 啥也没打到
@@ -111,7 +124,7 @@ vec3 color(const ray& in, int depth) {
 
 std::vector<shared_ptr<hitable>> worldlist;
 void buildWorld() {
-  texture* whitelightptr = new constant_texture(vec3(2, 2, 2));
+  texture* whitelightptr = new constant_texture(vec3(1000, 1000, 1000));
   texture* mikuptr = new constant_texture(vec3(0.223, 0.773, 0.733));
   texture* redptr = new constant_texture(vec3(0.65, 0.05, 0.05));
   texture* whiteptr = new constant_texture(vec3(0.73, 0.73, 0.73));
@@ -146,7 +159,7 @@ void buildWorld() {
   // worldlist.emplace_back(
   //     new rectangle_xz(0, 555, 0, 555, 555, new lambertian(whiteptr)));
   worldlist.emplace_back(
-     new rectangle_xz(0, 555, 0, 555, 0, new lambertian(whiteptr)));
+     new rectangle_xz(-1000, 1000, -1000, 1000, 0, new lambertian(whiteptr)));
   // worldlist.emplace_back(
   //     new rectangle_xy(0, 555, 0, 555, 555, new lambertian(whiteptr)));
   // worldlist.emplace_back(
@@ -188,12 +201,34 @@ int main() {
     cout << warn << endl;
   
   int cnt = 0;
-  cout << ldt.dc << endl;
-  cout << ldt.dg << endl;
-  for(auto p:ldt.angles_c){
-    cout << p << " ";
+  cout << ldt.dc << endl;//15
+  cout << ldt.dg << endl;//5
+
+  for(float i = 0.0; i <= 360.0; i += ldt.dc){
+    int j = i;
+    // 105/15=7 259/37-1=6
+    if((i/ldt.dc)>ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1 &&
+    (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc))
+    // 105 %= (259/37-1)=6*15
+      j %= (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc);
+    else if((i/ldt.dc)>ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)
+      j = 0;
+    if(i==270 && (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc>=90))
+      j=90;
+    // cout << "i" << i << " j" << j << endl;
+    // cout << (int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1) << endl;
+    // cout << (int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1)+(int)(180.0/ldt.dg)+1 << endl;
+    intensityDis.emplace_back(
+        vector<float>(ldt.luminous_intensity_distribution.begin()+(int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1)
+                    , ldt.luminous_intensity_distribution.begin()+(int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1)+(int)(180.0/ldt.dg)+1)
+    );
   }
-    
+  for(auto v: intensityDis){
+    for(auto p: v)
+      cout << p << " ";
+    cout << endl;
+  }
+  cout << intensityDis.size() << endl;
   system("pause");
 
   // 是否重新渲染
@@ -208,17 +243,17 @@ int main() {
     mout.open("output.PPM", ios::app);
 
   // 画布的长
-  int nx = 600;
+  int nx = 800;
   // 画布的宽
-  int ny = 300;
+  int ny = 400;
   // 画布某一点的采样数量
-  int ns = 30;
+  int ns = 200;
 
   buildWorld();
   // 正常视角
   // vec3 lookfrom(208, 75, -200), lookat(298, 75, 0);
   // 俯视
-  vec3 lookfrom(505, 300, 327), lookat(504.99, 0, 326.999999);
+  vec3 lookfrom(400, 800, 327), lookat(399.99, 0, 326.999999);
   camera cam(lookfrom, lookat, 40, double(nx) / double(ny), 0.0, 10.0, 0.0,
              1.0);
 
