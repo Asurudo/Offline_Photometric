@@ -114,7 +114,7 @@ class sphere_dielectric_pdf : public pdf{
       return vec3(x, y, z);
     }
   public:
-   sphere_dielectric_pdf(const vec3& p, const vec3& normal) : normal(normal), p(p), center(190.0, 90.0, 190.0), radius(90.0) {}
+   sphere_dielectric_pdf(const vec3& p, const vec3& normal) : normal(normal), p(p), center(500, 55, 325), radius(15.0) {}
 
   virtual double value(const vec3& direction) override {
     // 夹角为钝角，球体在物体背面，届不到

@@ -81,13 +81,20 @@ float getIntesiy(float C, float gamma){
   assert(C>=0 && C<=2*M_PI && gamma>=0 && gamma<=M_PI);
   int Cindex = floor(C/M_PI*180.0/ldt.dc);
   int gammaindex = floor(gamma/M_PI*180.0/ldt.dg);
-  if(gamma==0.0 || gamma==180.0)
+  if(gamma==0.0 || gamma==M_PI)
     return intensityDis[Cindex][gammaindex];
-  float d = 0.0;
+
+
+  float d = 0.0, e = 0.0;
   while(d+ldt.dg<=gamma/M_PI*180.0)
     d += ldt.dg;
+  while(e+ldt.dc<=C/M_PI*180.0)
+    e += ldt.dc;
   float a = 1.0-(gamma/M_PI*180.0-d)/ldt.dg;
-  return a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1];
+  float b = 1.0-(C/M_PI*180.0-e)/ldt.dc;
+  float value1 = (a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1]);
+  float value2 = (a*intensityDis[Cindex+1][gammaindex]+(1-a)*intensityDis[Cindex+1][gammaindex+1]);
+  return b*value1 + (1-b)*value2;
 }
 
 // 颜色着色
@@ -154,8 +161,10 @@ void buildWorld() {
   //     new rectangle_yz(0, 555, 0, 555, 0, new lambertian(greenptr)));
   // worldlist.emplace_back(new rectangle_xz(213, 343, 227, 332, 554,
   //                                        new diffuse_light(whitelightptr)));
-  worldlist.emplace_back(new rectangle_yz(30, 85, 300, 355, 500,
-                                          new diffuse_light(whitelightptr)));
+  worldlist.emplace_back(new rectangle_yz(2, 57, 300, 355, 500,
+                                         new diffuse_light(whitelightptr)));
+
+  // worldlist.emplace_back(new sphere(vec3(500, 55, 325), 15, new diffuse_light(whitelightptr)));
   // worldlist.emplace_back(
   //     new rectangle_xz(0, 555, 0, 555, 555, new lambertian(whiteptr)));
   worldlist.emplace_back(
@@ -192,7 +201,7 @@ int main() {
   
   std::string err;
   std::string warn;
-  if (!tiny_ldt<float>::load_ldt("photometry\\ARCOS3_60712332.LDT", err, warn, ldt)) {
+  if (!tiny_ldt<float>::load_ldt("photometry\\LINETIK-S_42184482.LDT", err, warn, ldt)) {
     cout << "failed" << endl;
   }
   if (!err.empty()) 
@@ -247,7 +256,7 @@ int main() {
   // 画布的宽
   int ny = 400;
   // 画布某一点的采样数量
-  int ns = 200;
+  int ns = 500;
 
   buildWorld();
   // 正常视角
