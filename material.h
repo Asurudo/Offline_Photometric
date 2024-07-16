@@ -73,11 +73,11 @@ class lambertian : public material {
     // srec.attenuation = textureptr->value(rec.u, rec.v, rec.p);
     // srec.pdf = mixed_pdf.value(srec.out_ray.direction());
     // srec.skip_pdf = false;
-    sphere_dielectric_pdf sdp(rec.p, rec.normal);
-    // hitable_pdf light_pdf(rec.p, rec.normal);
-    srec.out_ray = ray(rec.p, sdp.generate(), r_in.time());
+    // sphere_dielectric_pdf sdp(rec.p, rec.normal);
+    hitable_pdf light_pdf(rec.p, rec.normal);
+    srec.out_ray = ray(rec.p, light_pdf.generate(), r_in.time());
     srec.attenuation = textureptr->value(rec.u, rec.v, rec.p);
-    srec.pdf = sdp.value(srec.out_ray.direction());
+    srec.pdf = light_pdf.value(srec.out_ray.direction());
     srec.skip_pdf = false;
     
     // 球体玻璃采样

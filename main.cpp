@@ -120,7 +120,7 @@ vec3 color(const ray& in, int depth) {
       // 直视光源则可以看到光源原本的颜色
       // if (!depth) emitted.make_unit_vector();
       vec3 v = unit_vector(-in.direction());
-      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(v.x()))/abs(dot(unit_vector(in.direction()-in.origin()), unit_vector(vec3(-1, 0, 0))))/(85 - 30) / (355 - 300);
+      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(in.direction()-in.origin()), unit_vector(vec3(-1, 0, 0))))/(80 - 30) / (350 - 300);
     }
   } else {
     // 啥也没打到
@@ -131,7 +131,7 @@ vec3 color(const ray& in, int depth) {
 
 std::vector<shared_ptr<hitable>> worldlist;
 void buildWorld() {
-  texture* whitelightptr = new constant_texture(vec3(1000, 1000, 1000));
+  texture* whitelightptr = new constant_texture(vec3(500, 500, 500));
   texture* mikuptr = new constant_texture(vec3(0.223, 0.773, 0.733));
   texture* redptr = new constant_texture(vec3(0.65, 0.05, 0.05));
   texture* whiteptr = new constant_texture(vec3(0.73, 0.73, 0.73));
@@ -161,7 +161,7 @@ void buildWorld() {
   //     new rectangle_yz(0, 555, 0, 555, 0, new lambertian(greenptr)));
   // worldlist.emplace_back(new rectangle_xz(213, 343, 227, 332, 554,
   //                                        new diffuse_light(whitelightptr)));
-  worldlist.emplace_back(new rectangle_yz(2, 57, 300, 355, 500,
+  worldlist.emplace_back(new rectangle_yz(30, 80, 300, 350, 500,
                                          new diffuse_light(whitelightptr)));
 
   // worldlist.emplace_back(new sphere(vec3(500, 55, 325), 15, new diffuse_light(whitelightptr)));
@@ -201,7 +201,7 @@ int main() {
   
   std::string err;
   std::string warn;
-  if (!tiny_ldt<float>::load_ldt("photometry\\LINETIK-S_42184482.LDT", err, warn, ldt)) {
+  if (!tiny_ldt<float>::load_ldt("photometry\\SLOTLIGHT_42184612.LDT", err, warn, ldt)) {
     cout << "failed" << endl;
   }
   if (!err.empty()) 
@@ -223,7 +223,7 @@ int main() {
     else if((i/ldt.dc)>ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)
       j = 0;
     if(i==270 && (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc>=90))
-      j=90;
+      j = 90;
     // cout << "i" << i << " j" << j << endl;
     // cout << (int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1) << endl;
     // cout << (int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1)+(int)(180.0/ldt.dg)+1 << endl;
@@ -252,9 +252,9 @@ int main() {
     mout.open("output.PPM", ios::app);
 
   // 画布的长
-  int nx = 800;
+  int nx = 1000;
   // 画布的宽
-  int ny = 400;
+  int ny = 800;
   // 画布某一点的采样数量
   int ns = 500;
 
@@ -262,7 +262,7 @@ int main() {
   // 正常视角
   // vec3 lookfrom(208, 75, -200), lookat(298, 75, 0);
   // 俯视
-  vec3 lookfrom(400, 800, 327), lookat(399.99, 0, 326.999999);
+  vec3 lookfrom(499.99, 800, 325), lookat(500, 0, 324.999999);
   camera cam(lookfrom, lookat, 40, double(nx) / double(ny), 0.0, 10.0, 0.0,
              1.0);
 
