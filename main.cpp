@@ -96,24 +96,6 @@ void buildWorld() {
                           jyorandengine.jyoRandGetReal<double>(0, 1))));
   texture* noisetextptr = new noise_texture(0.01);
 
-  int nx, ny, nn;
-  unsigned char* tex_data = stbi_load("earthmap.jpg", &nx, &ny, &nn, 0);
-  texture* imagetextureptr = new image_texture(tex_data, nx, ny);
-
-  // 地板
-  int nb = 20;
-  for (int i = 0; i < nb; i++)
-    for (int j = 0; j < nb; j++) {
-      double w = 100;
-      double x0 = -1000 + i * w;
-      double y0 = 0;
-      double z0 = -1000 + j * w;
-      double x1 = x0 + w;
-      double y1 = 100 * (jyorandengine.jyoRandGetReal<double>(0, 1) + 0.01);
-      double z1 = z0 + w;
-      worldlist.emplace_back(new box(vec3(x0, y0, z0), vec3(x1, y1, z1),
-                                     new lambertian(groundtexptr)));
-    }
   // 灯
   worldlist.emplace_back(new rectangle_xz(123, 423, 147, 412, 554,
                                           new diffuse_light(mikulightptr)));
@@ -140,19 +122,6 @@ void buildWorld() {
   worldlist.emplace_back(new smoke(glasssphereptr, 0.2,
                                    new constant_texture(vec3(0.2, 0.4, 0.9))));
 
-  // 笼罩全图的战争迷雾
-  worldlist.emplace_back(
-      new smoke(new sphere(vec3(0, 0, 0), 5000, new dielectric(1.5)), 0.000005,
-                new constant_texture(vec3(1.0, 1.0, 1.0))));
-
-  // 地球
-  worldlist.emplace_back(
-      new sphere(vec3(400, 200, 400), 100, new lambertian(imagetextureptr)));
-
-  // 大理石球
-  worldlist.emplace_back(
-      new sphere(vec3(220, 280, 300), 80, new lambertian(noisetextptr)));
-
   // 金属小球组成的立方体
   int ns = 1000;
   for (int j = 0; j < ns; j++)
@@ -165,11 +134,7 @@ void buildWorld() {
             15),
         vec3(-100, 270, 395)));
 
-  // 从世界列表中创建bvh树
-  shared_ptr<hitable> rootptr;
-  bvh_node(worldlist, rootptr);
-  world = hitable_list(rootptr);
-  // world = hitable_list(worldlist);
+  world = hitable_list(worldlist);
 }
 
 int getfileline() {
