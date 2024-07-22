@@ -174,12 +174,6 @@ void buildWorld() {
   // worldlist.emplace_back(
   //     new sphere(vec3(190, 90, 190), 90, new dielectric(1.5)));
 
-  // worldlist.emplace_back(new translate(
-  //     new rotate_y(
-  //         new box(vec3(0, 0, 0), vec3(165, 330, 165), new lambertian(whiteptr)),
-  //         15),
-  //     vec3(265, 0, 295)));
-
   world = hitable_list(worldlist);
 }
 
