@@ -96,6 +96,24 @@ void buildWorld() {
                           jyorandengine.jyoRandGetReal<double>(0, 1))));
   texture* noisetextptr = new noise_texture(0.01);
 
+  int nx, ny, nn;
+  unsigned char* tex_data = stbi_load("earthmap.jpg", &nx, &ny, &nn, 0);
+  texture* imagetextureptr = new image_texture(tex_data, nx, ny);
+
+  // 地板
+  int nb = 20;
+  for (int i = 0; i < nb; i++)
+    for (int j = 0; j < nb; j++) {
+      double w = 100;
+      double x0 = -1000 + i * w;
+      double y0 = 0;
+      double z0 = -1000 + j * w;
+      double x1 = x0 + w;
+      double y1 = 100 * (jyorandengine.jyoRandGetReal<double>(0, 1) + 0.01);
+      double z1 = z0 + w;
+      worldlist.emplace_back(new box(vec3(x0, y0, z0), vec3(x1, y1, z1),
+                                     new lambertian(groundtexptr)));
+    }
   // 灯
   worldlist.emplace_back(new rectangle_xz(123, 423, 147, 412, 554,
                                           new diffuse_light(mikulightptr)));
@@ -108,13 +126,97 @@ void buildWorld() {
 
   // 玻璃球
   worldlist.emplace_back(
-     new rectangle_xz(-1000, 1000, -1000, 1000, 0, new lambertian(whiteptr)));
-  // worldlist.emplace_back(
-  //     new rectangle_xy(0, 555, 0, 555, 555, new lambertian(whiteptr)));
-  // worldlist.emplace_back(
-  //     new sphere(vec3(190, 90, 190), 90, new dielectric(1.5)));
+      new sphere(vec3(260, 150, 45), 50, new dielectric(1.5)));
 
-  world = hitable_list(worldlist);
+  // 金属球
+  worldlist.emplace_back(
+      new sphere(vec3(0, 150, 145), 50,
+                 new metal(new constant_texture(vec3(0.8, 0.8, 0.9)), 10.0)));
+
+  // 一个玻璃球与一团玻璃球形状的烟雾
+  hitable* glasssphereptr =
+      new sphere(vec3(360, 150, 145), 70, new dielectric(1.5));
+  worldlist.emplace_back(glasssphereptr);
+  worldlist.emplace_back(new smoke(glasssphereptr, 0.2,
+                                   new constant_texture(vec3(0.2, 0.4, 0.9))));
+
+  // 笼罩全图的战争迷雾
+  worldlist.emplace_back(
+      new smoke(new sphere(vec3(0, 0, 0), 5000, new dielectric(1.5)), 0.000005,
+                new constant_texture(vec3(1.0, 1.0, 1.0))));
+
+  // 地球
+  worldlist.emplace_back(
+      new sphere(vec3(400, 200, 400), 100, new lambertian(imagetextureptr)));
+
+  // 大理石球
+  worldlist.emplace_back(
+      new sphere(vec3(220, 280, 300), 80, new lambertian(noisetextptr)));
+
+  // 金属小球组成的立方体
+  int ns = 1000;
+  for (int j = 0; j < ns; j++)
+    worldlist.emplace_back(new translate(
+        new rotate_y(
+            new sphere(vec3(165 * jyorandengine.jyoRandGetReal<double>(0, 1),
+                            165 * jyorandengine.jyoRandGetReal<double>(0, 1),
+                            165 * jyorandengine.jyoRandGetReal<double>(0, 1)),
+                       10, new metal(whiteptr)),
+            15),
+        vec3(-100, 270, 395)));
+
+  // worldlist.emplace_back(
+  //     new sphere(vec3(0, -1000, 0), 1000, new lambertian(noisetextptr)));
+  // for (int a = -11; a < 11; a++) {
+  //   for (int b = -11; b < 11; b++) {
+  //     double choose_mat = jyorandengine.jyoRandGetReal<double>(0, 1);
+  //     vec3 center(a + 0.9 * jyorandengine.jyoRandGetReal<double>(0, 1),
+  //     0.2,
+  //                 b + 0.9 * jyorandengine.jyoRandGetReal<double>(0, 1));
+  //     if ((center - vec3(4, 0.2, 0)).length() > 0.9) {
+  //       if (choose_mat < 0.8) {
+  //         worldlist.emplace_back(new moving_sphere(
+  //             center, center + vec3(0, 0.5, 0), 0.0, 1.0, 0.2,
+  //             new lambertian(new constant_texture(
+  //                 vec3(jyorandengine.jyoRandGetReal<double>(0, 1) *
+  //                          jyorandengine.jyoRandGetReal<double>(0, 1),
+  //                      jyorandengine.jyoRandGetReal<double>(0, 1) *
+  //                          jyorandengine.jyoRandGetReal<double>(0, 1),
+  //                      jyorandengine.jyoRandGetReal<double>(0, 1) *
+  //                          jyorandengine.jyoRandGetReal<double>(0,
+  //                          1))))));
+  //       } else if (choose_mat < 0.95)
+  //         worldlist.emplace_back(new sphere(
+  //             center, 0.2,
+  //             new metal(metaltexture,
+  //                       0.5 * jyorandengine.jyoRandGetReal<double>(0, 1)
+  //                       *
+  //                           jyorandengine.jyoRandGetReal<double>(0,
+  //                           1))));
+  //       else
+  //         worldlist.emplace_back(new sphere(center, 0.2, new
+  //         dielectric(1.5)));
+  //     }
+  //   }
+  // }
+
+  // worldlist.emplace_back(
+  //     new sphere(vec3(0, 2, 0), 2, new lambertian(noisetextptr)));
+  // worldlist.emplace_back(
+  //     new rectangle_plane_xy(3, 5, 1, 3, -2, new
+  //     diffuse_light(constantextptr)));
+  // worldlist.emplace_back(
+  //     new sphere(vec3(-4, 1, 0), 1,
+  //                new lambertian(new constant_texture(vec3(0.4, 0.2,
+  //                0.1)))));
+  // worldlist.emplace_back(
+  //     new sphere(vec3(4, 1, 0), 1, new metal(metaltexture, 0)));
+
+  // 从世界列表中创建bvh树
+  shared_ptr<hitable> rootptr;
+  bvh_node(worldlist, rootptr);
+  world = hitable_list(rootptr);
+  // world = hitable_list(worldlist);
 }
 
 int getfileline() {
