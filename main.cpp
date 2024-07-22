@@ -171,8 +171,6 @@ void buildWorld() {
      new rectangle_xz(-1000, 1000, -1000, 1000, 0, new lambertian(whiteptr)));
   // worldlist.emplace_back(
   //     new rectangle_xy(0, 555, 0, 555, 555, new lambertian(whiteptr)));
-  // worldlist.emplace_back(
-  //     new sphere(vec3(190, 90, 190), 90, new dielectric(1.5)));
 
   world = hitable_list(worldlist);
 }
