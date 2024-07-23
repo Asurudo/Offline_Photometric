@@ -79,13 +79,19 @@ vec3 color(const ray& in, int depth) {
     // 材料的吸收度
     vec3 attenuation;
     vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
-    if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered))
-      return emitted + attenuation * color(scattered, depth + 1);
+    if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
+      // 表面法线与散射光线夹角的余弦值
+      double cos_theta = dot(unit_vector(rec.normal), unit_vector(-in.direction()));
+      // 如果小于零，代表光线往物体内部射，因此设为0
+      double theta =  max(cos_theta, 0.0) / PI;
+      return emitted + attenuation * theta * color(scattered, depth + 1);
+    }
     else {
       // 直视光源则可以看到光源原本的颜色
       if (!depth) emitted.make_unit_vector();
       vec3 v = unit_vector(-in.direction());
-      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(-in.direction()), unit_vector(vec3(-1, 0, 0))))/(80 - 30) / (350 - 300);
+      //return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(-in.direction()), unit_vector(vec3(-1, 0, 0))))/(80 - 30) / (350 - 300);
+      return 0.05*emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/dot(rec.p-in.origin(),rec.p-in.origin());
     }
   } else {
     return vec3(0, 0, 0);
@@ -94,11 +100,11 @@ vec3 color(const ray& in, int depth) {
 }
 std::vector<shared_ptr<hitable>> worldlist;
 void buildWorld() {
-  texture* whitelightptr = new constant_texture(vec3(500, 500, 500));
+  texture* whitelightptr = new constant_texture(vec3(1, 1, 1));
   texture* mikulightptr = new constant_texture(vec3(0.223, 0.773, 0.733) * 15);
   texture* mikuptr = new constant_texture(vec3(0.223, 0.773, 0.733));
   texture* redptr = new constant_texture(vec3(0.65, 0.05, 0.05));
-  texture* whiteptr = new constant_texture(vec3(0.73, 0.73, 0.73));
+  texture* whiteptr = new constant_texture(vec3(1, 1, 1));
   texture* greenptr = new constant_texture(vec3(0.12, 0.45, 0.15));
   texture* groundtexptr = new constant_texture(vec3(0.48, 0.83, 0.53));
 
@@ -116,7 +122,7 @@ void buildWorld() {
   texture* noisetextptr = new noise_texture(0.01);
 
   // 灯
-  worldlist.emplace_back(new rectangle_yz(30, 80, 300, 350, 500,
+  worldlist.emplace_back(new rectangle_yz(1.4, 2.4, 300, 301, 500,
                                          new diffuse_light(whitelightptr)));
   worldlist.emplace_back(
      new rectangle_xz(-1000, 1000, -1000, 1000, 0, new lambertian(whiteptr)));
@@ -148,7 +154,7 @@ int getfileline() {
 int main() {
   std::string err;
   std::string warn;
-  if (!tiny_ldt<float>::load_ldt("photometry\\SLOTLIGHT_42184612.LDT", err, warn, ldt)) {
+  if (!tiny_ldt<float>::load_ldt("photometry\\LINETIK-S_42184482.LDT", err, warn, ldt)) {
     cout << "failed" << endl;
   }
   if (!err.empty()) 
@@ -202,12 +208,12 @@ int main() {
   // 画布的长
   int nx = 800;
   // 画布的宽
-  int ny = 400;
+  int ny = 600;
   // 画布某一点的采样数量
-  int ns = 5000;
+  int ns = 100;
 
   buildWorld();
-  vec3 lookfrom(499.99, 800, 325), lookat(500, 0, 324.999999);
+  vec3 lookfrom(499.9, 20, 302), lookat(500, 0, 301.999);
   camera cam(lookfrom, lookat, 40, double(nx) / double(ny), 0.0, 10.0, 0.0,
              1.0);
 
