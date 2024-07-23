@@ -120,7 +120,7 @@ vec3 color(const ray& in, int depth) {
       // 直视光源则可以看到光源原本的颜色
       // if (!depth) emitted.make_unit_vector();
       vec3 v = unit_vector(-in.direction());
-      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(in.direction()-in.origin()), unit_vector(vec3(-1, 0, 0))))/(80 - 30) / (350 - 300);
+      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(-in.direction()), unit_vector(vec3(-1, 0, 0))))/(80 - 30) / (350 - 300);
     }
   } else {
     // 啥也没打到
@@ -244,11 +244,11 @@ int main() {
     mout.open("output.PPM", ios::app);
 
   // 画布的长
-  int nx = 1000;
+  int nx = 800;
   // 画布的宽
-  int ny = 800;
+  int ny = 400;
   // 画布某一点的采样数量
-  int ns = 500;
+  int ns = 100;
 
   buildWorld();
   // 正常视角
