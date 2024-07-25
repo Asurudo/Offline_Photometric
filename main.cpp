@@ -66,7 +66,7 @@ float getIntesiy(float C, float gamma){
   float b = 1.0-(C/M_PI*180.0-e)/ldt.dc;
   float value1 = (a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1]);
   float value2 = (a*intensityDis[Cindex+1][gammaindex]+(1-a)*intensityDis[Cindex+1][gammaindex+1]);
-  return b*value1 + (1-b)*value2;
+  return (b*value1 + (1-b)*value2)/683;
 }
 
 // 颜色着色
@@ -91,7 +91,7 @@ vec3 color(const ray& in, int depth) {
       if (!depth) emitted.make_unit_vector();
       vec3 v = unit_vector(-in.direction());
       //return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(-in.direction()), unit_vector(vec3(-1, 0, 0))))/(80 - 30) / (350 - 300);
-      return 0.05*emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/dot(rec.p-in.origin(),rec.p-in.origin());
+      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/dot(rec.p-in.origin(),rec.p-in.origin());
     }
   } else {
     return vec3(0, 0, 0);
@@ -100,7 +100,7 @@ vec3 color(const ray& in, int depth) {
 }
 std::vector<shared_ptr<hitable>> worldlist;
 void buildWorld() {
-  texture* whitelightptr = new constant_texture(vec3(1, 1, 1));
+  texture* whitelightptr = new constant_texture(vec3(50, 50, 50));
   texture* mikulightptr = new constant_texture(vec3(0.223, 0.773, 0.733) * 15);
   texture* mikuptr = new constant_texture(vec3(0.223, 0.773, 0.733));
   texture* redptr = new constant_texture(vec3(0.65, 0.05, 0.05));
@@ -154,7 +154,7 @@ int getfileline() {
 int main() {
   std::string err;
   std::string warn;
-  if (!tiny_ldt<float>::load_ldt("photometry\\LINETIK-S_42184482.LDT", err, warn, ldt)) {
+  if (!tiny_ldt<float>::load_ldt("photometry\\PERLUCE_42182932.LDT", err, warn, ldt)) {
     cout << "failed" << endl;
   }
   if (!err.empty()) 
@@ -167,22 +167,26 @@ int main() {
   cout << ldt.dg << endl;//5
 
   for(float i = 0.0; i <= 360.0; i += ldt.dc){
-    int j = i;
-    // 105/15=7 259/37-1=6
-    if((i/ldt.dc)>ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1 &&
-    (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc))
-    // 105 %= (259/37-1)=6*15
-      j %= (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc);
-    else if((i/ldt.dc)>ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)
-      j = 0;
-    if(i==270 && (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc>=90))
-      j = 90;
+    // int j = i;
+    // // 105/15=7 259/37-1=6
+    // if((i/ldt.dc)>ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1 &&
+    // (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc))
+    // // 105 %= (259/37-1)=6*15
+    //   j %= (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc);
+    // else if((i/ldt.dc)>ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)
+    //   j = 0;
+    // if(i==270 && (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc>=90))
+    //   j = 90;
+    int sz = (180/ldt.dg)+1;
     // cout << "i" << i << " j" << j << endl;
     // cout << (int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1) << endl;
     // cout << (int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1)+(int)(180.0/ldt.dg)+1 << endl;
+    int st = (int)(i/ldt.dc);
+    if(st*sz >= ldt.luminous_intensity_distribution.size())
+      st %= ldt.luminous_intensity_distribution.size()/sz;
     intensityDis.emplace_back(
-        vector<float>(ldt.luminous_intensity_distribution.begin()+(int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1)
-                    , ldt.luminous_intensity_distribution.begin()+(int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1)+(int)(180.0/ldt.dg)+1)
+        vector<float>(ldt.luminous_intensity_distribution.begin()+ st*(sz)
+                    , ldt.luminous_intensity_distribution.begin()+ st*(sz)+sz)
     );
   }
   for(auto v: intensityDis){
@@ -257,8 +261,8 @@ int main() {
         }
       // 取颜色的平均值
       col /= double(ns);
-      // gamma2修正，提升画面的质量
-      col = vec3(sqrt(col[0]), sqrt(col[1]), sqrt(col[2]));
+      // gamma修正，提升画面的质量
+      col = vec3(pow(col[0], 1.0/1.4), pow(col[1], 1.0/1.4), pow(col[2], 1.0/1.4));
       int ir = int(255.99 * col[0]);
       int ig = int(255.99 * col[1]);
       int ib = int(255.99 * col[2]);
