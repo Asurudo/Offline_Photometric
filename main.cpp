@@ -83,15 +83,16 @@ vec3 color(const ray& in, int depth) {
       // 表面法线与散射光线夹角的余弦值
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(-in.direction()));
       // 如果小于零，代表光线往物体内部射，因此设为0
-      double theta =  max(cos_theta, 0.0) / PI;
-      return emitted + attenuation * theta * color(scattered, depth + 1);
+      double brdf =  max(cos_theta, 0.0) / PI;
+      return emitted + attenuation * brdf * color(scattered, depth + 1);
     }
     else {
       // 直视光源则可以看到光源原本的颜色
       if (!depth) emitted.make_unit_vector();
       vec3 v = unit_vector(-in.direction());
       //return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(-in.direction()), unit_vector(vec3(-1, 0, 0))))/(80 - 30) / (350 - 300);
-      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/dot(rec.p-in.origin(),rec.p-in.origin());
+      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
+                                /dot(rec.p-in.origin(), rec.p-in.origin());
     }
   } else {
     return vec3(0, 0, 0);
@@ -122,7 +123,7 @@ void buildWorld() {
   texture* noisetextptr = new noise_texture(0.01);
 
   // 灯
-  worldlist.emplace_back(new rectangle_yz(1.4, 2.4, 300, 301, 500,
+  worldlist.emplace_back(new rectangle_yz(0.4, 3.4, 0, 3, 0,
                                          new diffuse_light(whitelightptr)));
   worldlist.emplace_back(
      new rectangle_xz(-1000, 1000, -1000, 1000, 0, new lambertian(whiteptr)));
@@ -154,7 +155,7 @@ int getfileline() {
 int main() {
   std::string err;
   std::string warn;
-  if (!tiny_ldt<float>::load_ldt("photometry\\PERLUCE_42182932.LDT", err, warn, ldt)) {
+  if (!tiny_ldt<float>::load_ldt("photometry\\SLOTLIGHT_42184612.LDT", err, warn, ldt)) {
     cout << "failed" << endl;
   }
   if (!err.empty()) 
@@ -214,10 +215,10 @@ int main() {
   // 画布的宽
   int ny = 600;
   // 画布某一点的采样数量
-  int ns = 100;
+  int ns = 500;
 
   buildWorld();
-  vec3 lookfrom(499.9, 20, 302), lookat(500, 0, 301.999);
+  vec3 lookfrom(-1.19, 60, 0), lookat(4.29, 0, 0.029);
   camera cam(lookfrom, lookat, 40, double(nx) / double(ny), 0.0, 10.0, 0.0,
              1.0);
 
@@ -262,7 +263,7 @@ int main() {
       // 取颜色的平均值
       col /= double(ns);
       // gamma修正，提升画面的质量
-      col = vec3(pow(col[0], 1.0/1.4), pow(col[1], 1.0/1.4), pow(col[2], 1.0/1.4));
+      col = vec3(pow(col[0], 1.0/2.2), pow(col[1], 1.0/2.2), pow(col[2], 1.0/2.2));
       int ir = int(255.99 * col[0]);
       int ig = int(255.99 * col[1]);
       int ib = int(255.99 * col[2]);

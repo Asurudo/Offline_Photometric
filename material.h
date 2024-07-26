@@ -39,9 +39,9 @@ class lambertian : public material {
   virtual bool scatter(const ray& r_in, const hit_record& rec,
                        vec3& attenuation, ray& scattered) const override {
     // scattered = reflect(r_in, rec);
-    scattered = ray(rec.p, unit_vector(vec3(500, 
-                                            jyorandengine.jyoRandGetReal<double>(1.4, 2.4),
-                                            jyorandengine.jyoRandGetReal<double>(300, 301))-rec.p));
+    scattered = ray(rec.p, unit_vector(vec3(0, 
+                                            jyorandengine.jyoRandGetReal<double>(0.4, 3.4),
+                                            jyorandengine.jyoRandGetReal<double>(0, 3))-rec.p));
     attenuation = textureptr->value(rec.u, rec.v, rec.p);
     return true;
   }
