@@ -90,9 +90,9 @@ vec3 color(const ray& in, int depth) {
       // 直视光源则可以看到光源原本的颜色
       if (!depth) emitted.make_unit_vector();
       vec3 v = unit_vector(-in.direction());
-      //return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(-in.direction()), unit_vector(vec3(-1, 0, 0))))/(80 - 30) / (350 - 300);
-      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
-                                /dot(rec.p-in.origin(), rec.p-in.origin());
+      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(-in.direction()), unit_vector(vec3(-1, 0, 0))))/(3.4 - 0.4) / (3 - 0);
+      // return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
+      //                          /dot(rec.p-in.origin(), rec.p-in.origin());
     }
   } else {
     return vec3(0, 0, 0);
@@ -101,7 +101,7 @@ vec3 color(const ray& in, int depth) {
 }
 std::vector<shared_ptr<hitable>> worldlist;
 void buildWorld() {
-  texture* whitelightptr = new constant_texture(vec3(50, 50, 50));
+  texture* whitelightptr = new constant_texture(vec3(150, 150, 150));
   texture* mikulightptr = new constant_texture(vec3(0.223, 0.773, 0.733) * 15);
   texture* mikuptr = new constant_texture(vec3(0.223, 0.773, 0.733));
   texture* redptr = new constant_texture(vec3(0.65, 0.05, 0.05));
@@ -215,7 +215,7 @@ int main() {
   // 画布的宽
   int ny = 600;
   // 画布某一点的采样数量
-  int ns = 500;
+  int ns = 20000;
 
   buildWorld();
   vec3 lookfrom(-1.19, 60, 0), lookat(4.29, 0, 0.029);
