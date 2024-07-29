@@ -88,11 +88,11 @@ vec3 color(const ray& in, int depth) {
     }
     else {
       // 直视光源则可以看到光源原本的颜色
-      if (!depth) emitted.make_unit_vector();
+      if (!depth) return vec3(1, 1, 1);
       vec3 v = unit_vector(-in.direction());
-      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(-in.direction()), unit_vector(vec3(-1, 0, 0))))/(3.4 - 0.4) / (3 - 0);
-      // return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
-      //                          /dot(rec.p-in.origin(), rec.p-in.origin());
+      // return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(-in.direction()), unit_vector(vec3(-1, 0, 0))))/(3.4 - 0.4) / (3 - 0);
+      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
+                                /dot(rec.p-in.origin(), rec.p-in.origin());
     }
   } else {
     return vec3(0, 0, 0);
@@ -155,7 +155,7 @@ int getfileline() {
 int main() {
   std::string err;
   std::string warn;
-  if (!tiny_ldt<float>::load_ldt("photometry\\SLOTLIGHT_42184612.LDT", err, warn, ldt)) {
+  if (!tiny_ldt<float>::load_ldt("photometry\\SCON-S.LDT", err, warn, ldt)) {
     cout << "failed" << endl;
   }
   if (!err.empty()) 
@@ -211,14 +211,15 @@ int main() {
     mout.open("output.PPM", ios::app);
 
   // 画布的长
-  int nx = 800;
+  int nx = 1270;
   // 画布的宽
-  int ny = 600;
+  int ny = 540;
   // 画布某一点的采样数量
-  int ns = 20000;
+  int ns = 1000;
 
   buildWorld();
-  vec3 lookfrom(-1.19, 60, 0), lookat(4.29, 0, 0.029);
+  // vec3 lookfrom(-1.19, 60, 0), lookat(4.29, 0, 0.029);
+  vec3 lookfrom(50, 30, 40), lookat(0, 0, 0.029);
   camera cam(lookfrom, lookat, 40, double(nx) / double(ny), 0.0, 10.0, 0.0,
              1.0);
 
