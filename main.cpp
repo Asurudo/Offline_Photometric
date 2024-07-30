@@ -82,15 +82,16 @@ vec3 color(const ray& in, int depth) {
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(-in.direction()));
       double brdf =  max(cos_theta, 0.0) / PI;
-      return emitted + attenuation * brdf * color(scattered, depth + 1);// cos/pi
+      return emitted + attenuation * color(scattered, depth + 1);
+      // return emitted + attenuation * brdf * color(scattered, depth + 1);// cos/pi
     }
     else {
       // 光源
       if (!depth) return vec3(1, 1, 1);
       vec3 v = unit_vector(-in.direction());
-      // return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(-in.direction()), unit_vector(vec3(-1, 0, 0))));
-      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
-                                /dot(rec.p-in.origin(), rec.p-in.origin()); // I/distance^2
+      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(-in.direction()), unit_vector(vec3(-1, 0, 0)))) / (3.4-0.4) / (3.0-0.0);
+      // return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
+      //                          /dot(rec.p-in.origin(), rec.p-in.origin()); // I/distance^2
     }
   } else {
     return vec3(0, 0, 0); // 闇に射る
@@ -153,7 +154,7 @@ int getfileline() {
 int main() {
   std::string err;
   std::string warn;
-  if (!tiny_ldt<float>::load_ldt("photometry\\SCON-S.LDT", err, warn, ldt)) {
+  if (!tiny_ldt<float>::load_ldt("photometry\\SLOTLIGHT_42184612.LDT", err, warn, ldt)) {
     cout << "failed" << endl;
   }
   if (!err.empty()) 
@@ -209,15 +210,15 @@ int main() {
     mout.open("output.PPM", ios::app);
 
   // 画布的长
-  int nx = 1270;
+  int nx = 1000;
   // 画布的宽
-  int ny = 540;
+  int ny = 800;
   // 画布某一点的采样数量
-  int ns = 1000;
+  int ns = 10000;
 
   buildWorld();
-  // vec3 lookfrom(-1.19, 60, 0), lookat(4.29, 0, 0.029);
-  vec3 lookfrom(50, 30, 40), lookat(0, 0, 0.029);
+  vec3 lookfrom(-1.19, 60, 0), lookat(4.29, 0, 0.029);
+  // vec3 lookfrom(50, 30, 40), lookat(0, 0, 0.029);
   camera cam(lookfrom, lookat, 40, double(nx) / double(ny), 0.0, 10.0, 0.0,
              1.0);
 
