@@ -72,30 +72,28 @@ float getIntesiy(float C, float gamma){
 // 颜色着色
 vec3 color(const ray& in, int depth) {
   hit_record rec;
-  // 减少误差，-0.00001也可以是交点
   if (world.hitanything(in, 0.001, DBL_MAX, rec)) {
-    // 反射出来的光线
+    // 反射光
     ray scattered;
-    // 材料的吸收度
+    // 吸收度
     vec3 attenuation;
     vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
     if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
-      // 表面法线与散射光线夹角的余弦值
+      // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(-in.direction()));
-      // 如果小于零，代表光线往物体内部射，因此设为0
       double brdf =  max(cos_theta, 0.0) / PI;
-      return emitted + attenuation * brdf * color(scattered, depth + 1);
+      return emitted + attenuation * brdf * color(scattered, depth + 1);// cos/pi
     }
     else {
-      // 直视光源则可以看到光源原本的颜色
+      // 光源
       if (!depth) return vec3(1, 1, 1);
       vec3 v = unit_vector(-in.direction());
-      // return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(-in.direction()), unit_vector(vec3(-1, 0, 0))))/(3.4 - 0.4) / (3 - 0);
+      // return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))/abs(dot(unit_vector(-in.direction()), unit_vector(vec3(-1, 0, 0))));
       return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
-                                /dot(rec.p-in.origin(), rec.p-in.origin());
+                                /dot(rec.p-in.origin(), rec.p-in.origin()); // I/distance^2
     }
   } else {
-    return vec3(0, 0, 0);
+    return vec3(0, 0, 0); // 闇に射る
   }
   exit(0);
 }
