@@ -38,10 +38,16 @@ class lambertian : public material {
   }
   virtual bool scatter(const ray& r_in, const hit_record& rec,
                        vec3& attenuation, ray& scattered) const override {
-    //scattered = reflect(r_in, rec);
+    #ifdef COSINE_SAMPLING
+    scattered = reflect(r_in, rec);
+    #endif
+
+    #ifdef LIGHT_SAMPLING
     scattered = ray(rec.p, unit_vector(vec3(0, 
                                             jyorandengine.jyoRandGetReal<double>(0.4, 3.4),
                                             jyorandengine.jyoRandGetReal<double>(0, 3))-rec.p));
+    #endif
+
     attenuation = textureptr->value(rec.u, rec.v, rec.p);
     return true;
   }

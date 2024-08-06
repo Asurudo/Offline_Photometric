@@ -1,3 +1,14 @@
+#define COSINE_SAMPLING
+// #define LIGHT_SAMPLING
+const double LIGHTMULTI = 150.0;
+
+// 画布的长
+int nx = 1000;
+// 画布的宽
+int ny = 800;
+// 画布某一点的采样数量
+int ns = 20000;
+
 #include <algorithm>
 #include <cfloat>
 #include <cstdlib>
@@ -36,20 +47,20 @@ vec3 randomInUnitSphere() {
   // } while (p.squared_length() >= 1.0);
   // return p;
 
-    // const double xi1 = jyorandengine.jyoRandGetReal<double>(0, 1);
-		// const double xi2 = jyorandengine.jyoRandGetReal<double>(0, 1);
-		// const double theta_h = acos( sqrt(1-xi1) );
-		// const double cosph = cos( 2.0 * M_PI * xi2 );
-		// const double sinph = sin( 2.0 * M_PI * xi2 );
-		// const double costh = cos( theta_h );
-		// const double sinth = sin( theta_h );
-    // const double checkVal = sinth*cosph*sinth*cosph +  sinth*sinph*sinth*sinph +  costh*costh;
-    // assert(checkVal >=0.99  && checkVal <= 1.01);
-    // return vec3( sinth * cosph, costh, sinth * sinph );
+    const double xi1 = jyorandengine.jyoRandGetReal<double>(0, 1);
+		const double xi2 = jyorandengine.jyoRandGetReal<double>(0, 1);
+		const double theta_h = acos( sqrt(1-xi1) );
+		const double cosph = cos( 2.0 * M_PI * xi2 );
+		const double sinph = sin( 2.0 * M_PI * xi2 );
+		const double costh = cos( theta_h );
+		const double sinth = sin( theta_h );
+    const double checkVal = sinth*cosph*sinth*cosph +  sinth*sinph*sinth*sinph +  costh*costh;
+    assert(checkVal >=0.99  && checkVal <= 1.01);
+    return vec3( sinth * cosph, costh, sinth * sinph );
 
-    vec3 p = randomInUnitDisk();
-    p.e[1] = sqrt(1.0 - p.x()*p.x() - p.z()*p.z());
-    return p;
+    // vec3 p = randomInUnitDisk();
+    // p.e[1] = sqrt(1.0 - p.x()*p.x() - p.z()*p.z());
+    // return p;
 }
 
 vec3 randomInUnitDisk() {
@@ -97,17 +108,28 @@ vec3 color(const ray& in, int depth) {
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
       double brdf =  max(cos_theta, 0.0) / M_PI;
-      // return emitted + attenuation * color(scattered, depth + 1);
+
+      #ifdef COSINE_SAMPLING
+      return emitted + attenuation * color(scattered, depth + 1);
+      #endif
+
+      #ifdef LIGHT_SAMPLING
       return emitted + attenuation * brdf * color(scattered, depth + 1);// cos/pi
+      #endif
     }
     else {
       // 光源
       if (!depth) return vec3(1, 1, 1);
       vec3 v = unit_vector(-in.direction());
-      //return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
-      //  /dot(unit_vector(-in.direction()), vec3(1, 0, 0)) / (3.4-0.4) / (3.0-0.0);
+      #ifdef COSINE_SAMPLING
+      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
+        /dot(unit_vector(-in.direction()), vec3(1, 0, 0)) / (3.4-0.4) / (3.0-0.0);
+      #endif
+
+      #ifdef LIGHT_SAMPLING
       return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
                                 /dot(rec.p-in.origin(), rec.p-in.origin()); // I/distance^2
+      #endif
     }
   } else {
     return vec3(0, 0, 0); // 闇に射る
@@ -116,7 +138,7 @@ vec3 color(const ray& in, int depth) {
 }
 std::vector<shared_ptr<hitable>> worldlist;
 void buildWorld() {
-  texture* whitelightptr = new constant_texture(vec3(150, 150, 150));
+  texture* whitelightptr = new constant_texture(vec3(LIGHTMULTI, LIGHTMULTI, LIGHTMULTI));
   texture* mikulightptr = new constant_texture(vec3(0.223, 0.773, 0.733) * 15);
   texture* mikuptr = new constant_texture(vec3(0.223, 0.773, 0.733));
   texture* redptr = new constant_texture(vec3(0.65, 0.05, 0.05));
@@ -226,11 +248,11 @@ int main() {
     mout.open("output.PPM", ios::app);
 
   // 画布的长
-  int nx = 1000;
+  // nx = 1000;
   // 画布的宽
-  int ny = 800;
+  // ny = 800;
   // 画布某一点的采样数量
-  int ns = 100;
+  // ns = 500;
 
   buildWorld();
   vec3 lookfrom(-1.19, 60, 0), lookat(4.29, 0, 0.029);
