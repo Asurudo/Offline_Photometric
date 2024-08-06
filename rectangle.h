@@ -126,7 +126,7 @@ class rectangle_yz : public rectangle {
     rec.mat_ptr = matptr;
     rec.p = r.point_at_parameter(t);
     rec.normal = vec3(1, 0, 0);
-    if (dot(r.direction(), rec.normal) > 0) rec.normal = -rec.normal;
+    //if (dot(r.direction(), rec.normal) > 0) rec.normal = -rec.normal;
     return true;
   }
 };

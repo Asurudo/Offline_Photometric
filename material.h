@@ -33,15 +33,15 @@ class lambertian : public material {
  public:
   lambertian(texture* a) : material(a) {}
   virtual ray reflect(const ray& r_in, const hit_record& rec) const override {
-    vec3 target = rec.p - r_in.A + rec.normal + randomInUnitSphere();
-    return ray(rec.p, unit_vector(target - (rec.p - r_in.A)), r_in.time());
+    // vec3 target = rec.p - r_in.A + rec.normal + randomInUnitSphere();
+    return ray(rec.p, unit_vector(randomInUnitSphere()), r_in.time());
   }
   virtual bool scatter(const ray& r_in, const hit_record& rec,
                        vec3& attenuation, ray& scattered) const override {
-    scattered = reflect(r_in, rec);
-    // scattered = ray(rec.p, unit_vector(vec3(0, 
-    //                                        jyorandengine.jyoRandGetReal<double>(0.4, 3.4),
-    //                                        jyorandengine.jyoRandGetReal<double>(0, 3))-rec.p));
+    //scattered = reflect(r_in, rec);
+    scattered = ray(rec.p, unit_vector(vec3(0, 
+                                            jyorandengine.jyoRandGetReal<double>(0.4, 3.4),
+                                            jyorandengine.jyoRandGetReal<double>(0, 3))-rec.p));
     attenuation = textureptr->value(rec.u, rec.v, rec.p);
     return true;
   }
