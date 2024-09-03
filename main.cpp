@@ -1,13 +1,13 @@
-#define COSINE_SAMPLING
-//#define LIGHT_SAMPLING
-const double LIGHTMULTI = 150.0;
+//#define COSINE_SAMPLING
+#define LIGHT_SAMPLING
+const double LIGHTMULTI = 1500.0;
 
 // 画布的长
-int nx = 1000;
+int nx = 800;
 // 画布的宽
-int ny = 800;
+int ny = 600;
 // 画布某一点的采样数量
-int ns = 100;
+int ns = 10;
 
 #include <algorithm>
 #include <cfloat>
@@ -95,6 +95,76 @@ float getIntesiy(float C, float gamma){
   return (b*value1 + (1-b)*value2)/683;
 }
 
+vec3 m_t, m_b, m_n;
+
+void getMTBN(const vec3 &n)
+{
+  m_n = n; 
+  m_t = unit_vector(cross(n, (std::abs(n.x()) < std::abs(n.z())) ? vec3(0.0, n.z(), -n.y()) : vec3(-n.y(), n.x(), 0.0)));
+  m_b = cross(m_t, m_n);
+}
+
+vec3 to_local(const vec3 &w)
+{
+   return vec3(dot(m_t, w), dot(m_b, w), dot(m_n, w)); 
+}
+
+double d(const vec3 &lwi, const vec3 &lwo, const double &m_alpha)
+{
+	const vec3 h = unit_vector( lwi + lwo );
+  const auto cos2 = h.y() * h.y();
+	const auto sin2 = std::max( 0.0, 1.0 - cos2 );
+  const double denom = PI * m_alpha * m_alpha * ( cos2 + sin2 / ( m_alpha * m_alpha ) ) * ( cos2 + sin2 / ( m_alpha * m_alpha ) );
+	assert( std::isfinite( denom ) );
+  return 1.0 / denom;
+}
+
+//幾何項を返す
+double g(const vec3 &lwi, const vec3 &lwo, const double &m_alpha)
+{
+	const double tan_i = 1.0 / ( lwi.y() * lwi.y() ) - 1.0; assert( std::isfinite( tan_i ) );
+	const double tan_o = 1.0 / ( lwo.y() * lwo.y() ) - 1.0; assert( std::isfinite( tan_o ) );
+	const double lambda_i = ( - 1.0 + sqrt( 1.0 + m_alpha * m_alpha * tan_i ) ) / 2.0; assert( std::isfinite( lambda_i ) );
+	const double lambda_o = ( - 1.0 + sqrt( 1.0 + m_alpha * m_alpha * tan_o ) ) / 2.0; assert( std::isfinite( lambda_o ) );
+	return 1.0 / ( 1.0 + lambda_i + lambda_o );
+}
+
+double f(const vec3& lwi, const vec3& lwo, double f0)
+{
+    const vec3 h = unit_vector( lwi + lwo );
+    const double cosine = dot( h, lwi );
+    const double tmp = ( 1.0 - cosine ) * ( 1.0 - cosine ) * ( 1.0 - cosine ) * ( 1.0 - cosine ) * ( 1.0 - cosine );
+    return f0 + ( 1.0 - f0 ) * tmp;
+}
+
+// マクロ法線 光源L 照相机V ラフネス値 f0
+double BRDF_Specular_GGX(vec3 N, vec3 L, vec3 V, double roughness, double f0)
+{
+    getMTBN(N);
+    L = to_local(L);
+    V = to_local(V);
+    vec3 H = unit_vector(L + V);
+    double NoV = dot(N, V);
+    double NoL = dot(N, L);
+    
+    NoV = abs(NoV), NoL = abs(NoL);
+
+    // if(NoV <= 0.0 || NoL <= 0.0)
+    //  return 0.0;
+
+    // double NoH = dot(N, H);
+    // double LoH = dot(L, H);
+    
+    // 法線分布
+    double D = d(L, V, roughness);
+    // 幾何減衰
+    double G = g(L, V, roughness);
+    // フレネル
+    double F = f(L, V, f0);
+    // スペキュラBRDF
+    return D * G * F / (4.0 * NoL * NoV);
+}
+
 // 颜色着色
 vec3 color(const ray& in, int depth) {
   hit_record rec;
@@ -107,14 +177,20 @@ vec3 color(const ray& in, int depth) {
     if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
-      double brdf =  max(cos_theta, 0.0) / M_PI;
+      // double brdf = 1.0 / M_PI;
+      assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
+      double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
+                                      unit_vector(scattered.direction()), 
+                                      unit_vector(-in.direction()), 
+                                     0.95, 0.15); 
+      // cout << brdf << endl;
 
       #ifdef COSINE_SAMPLING
       return emitted + attenuation * color(scattered, depth + 1);
       #endif
 
       #ifdef LIGHT_SAMPLING
-      return emitted + attenuation * brdf * color(scattered, depth + 1);// cos/pi
+      return emitted + attenuation * brdf * max(cos_theta, 0.0)* color(scattered, depth + 1);
       #endif
     }
     else {
@@ -196,7 +272,7 @@ int getfileline() {
 int main() {
   std::string err;
   std::string warn;
-  if (!tiny_ldt<float>::load_ldt("photometry\\PERLUCE_42182932.LDT", err, warn, ldt)) {
+  if (!tiny_ldt<float>::load_ldt("photometry\\SLOTLIGHT_42184612.LDT", err, warn, ldt)) {
     cout << "failed" << endl;
   }
   if (!err.empty()) 
@@ -251,16 +327,11 @@ int main() {
   else
     mout.open("output.PPM", ios::app);
 
-  // 画布的长
-  // nx = 1000;
-  // 画布的宽
-  // ny = 800;
-  // 画布某一点的采样数量
-  // ns = 500;
 
   buildWorld();
-  vec3 lookfrom(-1.19, 60, 0), lookat(4.29, 0, 0.029);
+  // vec3 lookfrom(-1.19, 60, 0), lookat(4.29, 0, 0.029);
   // vec3 lookfrom(50, 30, 40), lookat(0, 0, 0.029);
+  vec3 lookfrom(30, 1, 1.5), lookat(5, 0, 0);
   camera cam(lookfrom, lookat, 40, double(nx) / double(ny), 0.0, 10.0, 0.0,
              1.0);
 
