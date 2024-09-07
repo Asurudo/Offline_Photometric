@@ -1,13 +1,12 @@
 //#define COSINE_SAMPLING
 #define LIGHT_SAMPLING
-const double LIGHTMULTI = 1500.0;
 
 // 画布的长
 int nx = 800;
 // 画布的宽
 int ny = 600;
 // 画布某一点的采样数量
-int ns = 10;
+int ns = 100;
 
 #include <algorithm>
 #include <cfloat>
@@ -79,9 +78,8 @@ float getIntesiy(float C, float gamma){
   assert(C>=0 && C<=2*M_PI && gamma>=0 && gamma<=M_PI);
   int Cindex = floor(C/M_PI*180.0/ldt.dc);
   int gammaindex = floor(gamma/M_PI*180.0/ldt.dg);
-  if(gamma==0.0 || gamma==M_PI)
-    return intensityDis[Cindex][gammaindex];
-
+  //if(gamma==0.0 || gamma==M_PI)
+  //  return intensityDis[Cindex][gammaindex];
 
   float d = 0.0, e = 0.0;
   while(d+ldt.dg<=gamma/M_PI*180.0)
@@ -92,7 +90,7 @@ float getIntesiy(float C, float gamma){
   float b = 1.0-(C/M_PI*180.0-e)/ldt.dc;
   float value1 = (a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1]);
   float value2 = (a*intensityDis[Cindex+1][gammaindex]+(1-a)*intensityDis[Cindex+1][gammaindex+1]);
-  return (b*value1 + (1-b)*value2)/683;
+  return 90 * (b*value1 + (1-b)*value2)/683;
 }
 
 vec3 m_t, m_b, m_n;
@@ -169,20 +167,24 @@ double BRDF_Specular_GGX(vec3 N, vec3 L, vec3 V, double roughness, double f0)
 vec3 color(const ray& in, int depth) {
   hit_record rec;
   if (world.hitanything(in, 0.001, DBL_MAX, rec)) {
+    
+    if(rec.p.x()<=0.0001 && rec.p.x()>=-0.0001 && depth==0)
+      return vec3(0, 0, 0);
+    
     // 反射光
     ray scattered;
     // 吸收度
     vec3 attenuation;
     vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
-    if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
+    if (depth < 3 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
-      // double brdf = 1.0 / M_PI;
+      double brdf = 1.0 / PI;
       assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
-      double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
-                                      unit_vector(scattered.direction()), 
-                                      unit_vector(-in.direction()), 
-                                     0.95, 0.15); 
+      // double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
+      //                                unit_vector(scattered.direction()), 
+      //                                unit_vector(-in.direction()), 
+      //                               0.2, 0.95); 
       // cout << brdf << endl;
 
       #ifdef COSINE_SAMPLING
@@ -218,7 +220,7 @@ vec3 color(const ray& in, int depth) {
 }
 std::vector<shared_ptr<hitable>> worldlist;
 void buildWorld() {
-  texture* whitelightptr = new constant_texture(vec3(LIGHTMULTI, LIGHTMULTI, LIGHTMULTI));
+  texture* whitelightptr = new constant_texture(vec3(0, 0, 0));
   texture* mikulightptr = new constant_texture(vec3(0.223, 0.773, 0.733) * 15);
   texture* mikuptr = new constant_texture(vec3(0.223, 0.773, 0.733));
   texture* redptr = new constant_texture(vec3(0.65, 0.05, 0.05));
@@ -240,8 +242,8 @@ void buildWorld() {
   texture* noisetextptr = new noise_texture(0.01);
 
   // 灯
-  worldlist.emplace_back(new rectangle_yz(0.4, 3.4, 0, 3, 0,
-                                         new diffuse_light(whitelightptr)));
+  worldlist.emplace_back(new rectangle_yz(0.4, 3.4, -1.5, 1.5, 0,
+                                         new diffuse_light(whiteptr)));
   worldlist.emplace_back(
      new rectangle_xz(-1000, 1000, -1000, 1000, 0, new lambertian(whiteptr)));
 
@@ -272,7 +274,7 @@ int getfileline() {
 int main() {
   std::string err;
   std::string warn;
-  if (!tiny_ldt<float>::load_ldt("photometry\\SLOTLIGHT_42184612.LDT", err, warn, ldt)) {
+  if (!tiny_ldt<float>::load_ldt("photometry\\MIREL_42925637.LDT", err, warn, ldt)) {
     cout << "failed" << endl;
   }
   if (!err.empty()) 
@@ -329,11 +331,10 @@ int main() {
 
 
   buildWorld();
-  // vec3 lookfrom(-1.19, 60, 0), lookat(4.29, 0, 0.029);
+  vec3 lookfrom(0, 60, 0), lookat(0.00001, 0, 0);
   // vec3 lookfrom(50, 30, 40), lookat(0, 0, 0.029);
-  vec3 lookfrom(30, 1, 1.5), lookat(5, 0, 0);
-  camera cam(lookfrom, lookat, 40, double(nx) / double(ny), 0.0, 10.0, 0.0,
-             1.0);
+  // vec3 lookfrom(30, 1, 1.5), lookat(5, 0, 0);
+  camera cam(lookfrom, lookat, 45, double(nx) / double(ny), 0.0, 0.0);
 
   int pauseflag = 1;
   int si, sj;
@@ -375,8 +376,9 @@ int main() {
         }
       // 取颜色的平均值
       col /= double(ns);
+
       // gamma修正，提升画面的质量
-      col = vec3(pow(col[0], 1.0/2.2), pow(col[1], 1.0/2.2), pow(col[2], 1.0/2.2));
+      col = vec3(pow(col[0], 1.0/3.3), pow(col[1], 1.0/3.3), pow(col[2], 1.0/3.3));
       int ir = int(255.99 * col[0]);
       int ig = int(255.99 * col[1]);
       int ib = int(255.99 * col[2]);

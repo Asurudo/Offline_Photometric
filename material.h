@@ -45,7 +45,7 @@ class lambertian : public material {
     #ifdef LIGHT_SAMPLING
     scattered = ray(rec.p, unit_vector(vec3(0, 
                                             jyorandengine.jyoRandGetReal<double>(0.4, 3.4),
-                                            jyorandengine.jyoRandGetReal<double>(0, 3))-rec.p));
+                                            jyorandengine.jyoRandGetReal<double>(-1.5, 1.5))-rec.p));
     #endif
 
     attenuation = textureptr->value(rec.u, rec.v, rec.p);
