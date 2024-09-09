@@ -75,6 +75,7 @@ tiny_ldt<float>::light ldt;
 vector<vector<float>> intensityDis;
 
 float getIntesiy(float C, float gamma){
+  // return 50.0;
   assert(C>=0 && C<=2*M_PI && gamma>=0 && gamma<=M_PI);
   int Cindex = floor(C/M_PI*180.0/ldt.dc);
   int gammaindex = floor(gamma/M_PI*180.0/ldt.dg);
@@ -168,7 +169,7 @@ vec3 color(const ray& in, int depth) {
   hit_record rec;
   if (world.hitanything(in, 0.001, DBL_MAX, rec)) {
     
-    if(rec.p.x()<=0.0001 && rec.p.x()>=-0.0001 && depth==0)
+    if(rec.p.x()<=0.0001 && rec.p.x()>=-0.0001  && rec.p.y() <=0.001 && depth==0)
       return vec3(0, 0, 0);
     
     // 反射光
@@ -184,7 +185,7 @@ vec3 color(const ray& in, int depth) {
       // double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
       //                                unit_vector(scattered.direction()), 
       //                                unit_vector(-in.direction()), 
-      //                               0.2, 0.95); 
+      //                               0.95, 1.0); 
       // cout << brdf << endl;
 
       #ifdef COSINE_SAMPLING
@@ -257,8 +258,8 @@ void buildWorld() {
   world = hitable_list(worldlist);
 }
 
-int getfileline() {
-  std::ifstream file("output.PPM");
+int getfileline(string filename) {
+  std::ifstream file(filename + ".PPM");
   // 判断文件是否打开成功
   if (file.is_open()) {
     int line_count = 0;
@@ -274,7 +275,8 @@ int getfileline() {
 int main() {
   std::string err;
   std::string warn;
-  if (!tiny_ldt<float>::load_ldt("photometry\\MIREL_42925637.LDT", err, warn, ldt)) {
+  std::string filename = "ARCOS3_60712332.LDT";
+  if (!tiny_ldt<float>::load_ldt("photometry\\" + filename, err, warn, ldt)) {
     cout << "failed" << endl;
   }
   if (!err.empty()) 
@@ -321,19 +323,19 @@ int main() {
   // 是否重新渲染
   int startoveragain = 1;
 
-  int curline = getfileline();
+  int curline = getfileline(filename);
 
   ofstream mout;
   if (startoveragain)
-    mout.open("output.PPM");
+    mout.open(filename + ".PPM");
   else
-    mout.open("output.PPM", ios::app);
+    mout.open(filename + ".PPM", ios::app);
 
 
   buildWorld();
   vec3 lookfrom(0, 60, 0), lookat(0.00001, 0, 0);
-  // vec3 lookfrom(50, 30, 40), lookat(0, 0, 0.029);
-  // vec3 lookfrom(30, 1, 1.5), lookat(5, 0, 0);
+  // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
+  // vec3 lookfrom(30, 15, 1.5), lookat(5, 0, 0);
   camera cam(lookfrom, lookat, 45, double(nx) / double(ny), 0.0, 0.0);
 
   int pauseflag = 1;
@@ -378,7 +380,7 @@ int main() {
       col /= double(ns);
 
       // gamma修正，提升画面的质量
-      col = vec3(pow(col[0], 1.0/3.3), pow(col[1], 1.0/3.3), pow(col[2], 1.0/3.3));
+      col = vec3(pow(col[0], 1.0/2.2), pow(col[1], 1.0/2.2), pow(col[2], 1.0/2.2));
       int ir = int(255.99 * col[0]);
       int ig = int(255.99 * col[1]);
       int ib = int(255.99 * col[2]);
