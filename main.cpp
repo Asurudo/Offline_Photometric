@@ -6,7 +6,7 @@ int nx = 800;
 // 画布的宽
 int ny = 600;
 // 画布某一点的采样数量
-int ns = 100;
+int ns = 10000;
 
 #include <algorithm>
 #include <cfloat>
@@ -91,12 +91,13 @@ float getIntesiy(float C, float gamma){
   float b = 1.0-(C/M_PI*180.0-e)/ldt.dc;
   float value1 = (a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1]);
   float value2 = (a*intensityDis[Cindex+1][gammaindex]+(1-a)*intensityDis[Cindex+1][gammaindex+1]);
-  return 90 * (b*value1 + (1-b)*value2)/683;
+  return 150 * (b*value1 + (1-b)*value2)/683;
 }
 
 vec3 m_t, m_b, m_n;
 
-void getMTBN(const vec3 &n)
+//(0,1,0)
+void getMTNB(const vec3 &n)
 {
   m_n = n; 
   m_t = unit_vector(cross(n, (std::abs(n.x()) < std::abs(n.z())) ? vec3(0.0, n.z(), -n.y()) : vec3(-n.y(), n.x(), 0.0)));
@@ -105,7 +106,7 @@ void getMTBN(const vec3 &n)
 
 vec3 to_local(const vec3 &w)
 {
-   return vec3(dot(m_t, w), dot(m_b, w), dot(m_n, w)); 
+   return vec3(dot(m_t, w), dot(m_n, w), dot(m_b, w)); 
 }
 
 double d(const vec3 &lwi, const vec3 &lwo, const double &m_alpha)
@@ -113,6 +114,7 @@ double d(const vec3 &lwi, const vec3 &lwo, const double &m_alpha)
 	const vec3 h = unit_vector( lwi + lwo );
   const auto cos2 = h.y() * h.y();
 	const auto sin2 = std::max( 0.0, 1.0 - cos2 );
+  
   const double denom = PI * m_alpha * m_alpha * ( cos2 + sin2 / ( m_alpha * m_alpha ) ) * ( cos2 + sin2 / ( m_alpha * m_alpha ) );
 	assert( std::isfinite( denom ) );
   return 1.0 / denom;
@@ -139,7 +141,6 @@ double f(const vec3& lwi, const vec3& lwo, double f0)
 // マクロ法線 光源L 照相机V ラフネス値 f0
 double BRDF_Specular_GGX(vec3 N, vec3 L, vec3 V, double roughness, double f0)
 {
-    getMTBN(N);
     L = to_local(L);
     V = to_local(V);
     vec3 H = unit_vector(L + V);
@@ -169,7 +170,7 @@ vec3 color(const ray& in, int depth) {
   hit_record rec;
   if (world.hitanything(in, 0.001, DBL_MAX, rec)) {
     
-    if(rec.p.x()<=0.0001 && rec.p.x()>=-0.0001  && rec.p.y() <=0.001 && depth==0)
+    if(rec.p.x()<=0.0001 && rec.p.x()>=-0.0001  && rec.p.y() <=0.01 && depth==0)
       return vec3(0, 0, 0);
     
     // 反射光
@@ -180,12 +181,12 @@ vec3 color(const ray& in, int depth) {
     if (depth < 3 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
-      double brdf = 1.0 / PI;
+      // double brdf = 1.0 / PI;
       assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
-      // double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
-      //                                unit_vector(scattered.direction()), 
-      //                                unit_vector(-in.direction()), 
-      //                               0.95, 1.0); 
+      double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
+                                      unit_vector(scattered.direction()), 
+                                      unit_vector(-in.direction()), 
+                                     0.001, 1.0); 
       // cout << brdf << endl;
 
       #ifdef COSINE_SAMPLING
@@ -221,6 +222,7 @@ vec3 color(const ray& in, int depth) {
 }
 std::vector<shared_ptr<hitable>> worldlist;
 void buildWorld() {
+  getMTNB(vec3(0,1,0));
   texture* whitelightptr = new constant_texture(vec3(0, 0, 0));
   texture* mikulightptr = new constant_texture(vec3(0.223, 0.773, 0.733) * 15);
   texture* mikuptr = new constant_texture(vec3(0.223, 0.773, 0.733));
@@ -275,7 +277,7 @@ int getfileline(string filename) {
 int main() {
   std::string err;
   std::string warn;
-  std::string filename = "ARCOS3_60712332.LDT";
+  std::string filename = "MIREL_42925637.LDT";
   if (!tiny_ldt<float>::load_ldt("photometry\\" + filename, err, warn, ldt)) {
     cout << "failed" << endl;
   }
@@ -333,9 +335,9 @@ int main() {
 
 
   buildWorld();
-  vec3 lookfrom(0, 60, 0), lookat(0.00001, 0, 0);
+  // vec3 lookfrom(0, 60, 0), lookat(0.00001, 0, 0);
   // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
-  // vec3 lookfrom(30, 15, 1.5), lookat(5, 0, 0);
+  vec3 lookfrom(25, 35, 1.5), lookat(2, 0, 0);
   camera cam(lookfrom, lookat, 45, double(nx) / double(ny), 0.0, 0.0);
 
   int pauseflag = 1;
