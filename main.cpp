@@ -6,7 +6,7 @@ int nx = 800;
 // 画布的宽
 int ny = 600;
 // 画布某一点的采样数量
-int ns = 10000;
+int ns = 100;
 
 #include <algorithm>
 #include <cfloat>
@@ -75,7 +75,6 @@ tiny_ldt<float>::light ldt;
 vector<vector<float>> intensityDis;
 
 float getIntesiy(float C, float gamma){
-  // return 50.0;
   assert(C>=0 && C<=2*M_PI && gamma>=0 && gamma<=M_PI);
   int Cindex = floor(C/M_PI*180.0/ldt.dc);
   int gammaindex = floor(gamma/M_PI*180.0/ldt.dg);
@@ -91,7 +90,7 @@ float getIntesiy(float C, float gamma){
   float b = 1.0-(C/M_PI*180.0-e)/ldt.dc;
   float value1 = (a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1]);
   float value2 = (a*intensityDis[Cindex+1][gammaindex]+(1-a)*intensityDis[Cindex+1][gammaindex+1]);
-  return 150 * (b*value1 + (1-b)*value2)/683;
+  return 300 * (b*value1 + (1-b)*value2)/683;
 }
 
 vec3 m_t, m_b, m_n;
@@ -106,18 +105,18 @@ void getMTNB(const vec3 &n)
 
 vec3 to_local(const vec3 &w)
 {
-   return vec3(dot(m_t, w), dot(m_n, w), dot(m_b, w)); 
+  // m_n = n = (0, 1, 0)
+  // return vec3(dot(m_t, w), dot(m_b, w), dot(m_n, w)); 
+  return vec3(dot(m_t, w), dot(m_n, w), dot(m_b, w)); 
 }
 
 double d(const vec3 &lwi, const vec3 &lwo, const double &m_alpha)
 {
 	const vec3 h = unit_vector( lwi + lwo );
   const auto cos2 = h.y() * h.y();
-	const auto sin2 = std::max( 0.0, 1.0 - cos2 );
+	const auto sin2 = 1.0 - cos2 ;
   
-  const double denom = PI * m_alpha * m_alpha * ( cos2 + sin2 / ( m_alpha * m_alpha ) ) * ( cos2 + sin2 / ( m_alpha * m_alpha ) );
-	assert( std::isfinite( denom ) );
-  return 1.0 / denom;
+  return m_alpha * m_alpha / ( M_PI * ( cos2 * m_alpha * m_alpha + sin2 ) * ( cos2 * m_alpha * m_alpha + sin2 ) );
 }
 
 //幾何項を返す
@@ -178,7 +177,7 @@ vec3 color(const ray& in, int depth) {
     // 吸收度
     vec3 attenuation;
     vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
-    if (depth < 3 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
+    if (depth < 10 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
       // double brdf = 1.0 / PI;
@@ -186,7 +185,7 @@ vec3 color(const ray& in, int depth) {
       double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
                                       unit_vector(scattered.direction()), 
                                       unit_vector(-in.direction()), 
-                                     0.001, 1.0); 
+                                      0.2, 1); 
       // cout << brdf << endl;
 
       #ifdef COSINE_SAMPLING
@@ -248,7 +247,7 @@ void buildWorld() {
   worldlist.emplace_back(new rectangle_yz(0.4, 3.4, -1.5, 1.5, 0,
                                          new diffuse_light(whiteptr)));
   worldlist.emplace_back(
-     new rectangle_xz(-1000, 1000, -1000, 1000, 0, new lambertian(whiteptr)));
+     new rectangle_xz(-100, 100, -100, 100, 0, new lambertian(whiteptr)));
 
   // 一个玻璃球与一团玻璃球形状的烟雾
   // hitable* glasssphereptr =
@@ -277,7 +276,7 @@ int getfileline(string filename) {
 int main() {
   std::string err;
   std::string warn;
-  std::string filename = "MIREL_42925637.LDT";
+  std::string filename = "ARCOS3_60712332.LDT";
   if (!tiny_ldt<float>::load_ldt("photometry\\" + filename, err, warn, ldt)) {
     cout << "failed" << endl;
   }
@@ -335,9 +334,9 @@ int main() {
 
 
   buildWorld();
-  // vec3 lookfrom(0, 60, 0), lookat(0.00001, 0, 0);
+  vec3 lookfrom(0, 60, 0), lookat(0.000000000000001, 0, 0);
   // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
-  vec3 lookfrom(25, 35, 1.5), lookat(2, 0, 0);
+  // vec3 lookfrom(25, 5, 1.5), lookat(2, 0, 0);
   camera cam(lookfrom, lookat, 45, double(nx) / double(ny), 0.0, 0.0);
 
   int pauseflag = 1;
@@ -387,6 +386,8 @@ int main() {
       int ig = int(255.99 * col[1]);
       int ib = int(255.99 * col[2]);
       ir = min(ir, 255), ig = min(ig, 255), ib = min(ib, 255);
+      assert(ir >=0 && ig>=0 && ib>=0);
+      // ir = max(ir, 0), ig = max(ig, 0), ib = max(ib, 0);
       stringstream ss;
       ss << ir << " " << ig << " " << ib << "\n";
       mout << ss.str();
