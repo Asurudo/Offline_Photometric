@@ -1,4 +1,4 @@
-//#define COSINE_SAMPLING
+// #define COSINE_SAMPLING
 #define LIGHT_SAMPLING
 
 // 画布的长
@@ -33,6 +33,11 @@ const double PI = 3.141592653;
 #include "tiny_ldt.h"
 
 using namespace std;
+
+std::string filename = "ARCOS3_60712332.LDT";
+// vec3 lookfrom(0, 60, 0), lookat(0.0001, 0, 0);
+// vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
+vec3 lookfrom(25, 5, 0), lookat(2, 0, 0);
 
 Rand jyorandengine;
 hitable_list world;
@@ -90,7 +95,7 @@ float getIntesiy(float C, float gamma){
   float b = 1.0-(C/M_PI*180.0-e)/ldt.dc;
   float value1 = (a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1]);
   float value2 = (a*intensityDis[Cindex+1][gammaindex]+(1-a)*intensityDis[Cindex+1][gammaindex+1]);
-  return 300 * (b*value1 + (1-b)*value2)/683;
+  return 300 * (b*value1 + (1-b)*value2)/683.f;
 }
 
 vec3 m_t, m_b, m_n;
@@ -99,7 +104,7 @@ vec3 m_t, m_b, m_n;
 void getMTNB(const vec3 &n)
 {
   m_n = n; 
-  m_t = unit_vector(cross(n, (std::abs(n.x()) < std::abs(n.z())) ? vec3(0.0, n.z(), -n.y()) : vec3(-n.y(), n.x(), 0.0)));
+  m_t = unit_vector(cross(n, (std::abs(n.x()) < std::abs(n.z())) ? vec3(0.0, -n.z(), n.x()) : vec3(-n.y(), n.x(), 0.0)));
   m_b = cross(m_t, m_n);
 }
 
@@ -114,9 +119,13 @@ double d(const vec3 &lwi, const vec3 &lwo, const double &m_alpha)
 {
 	const vec3 h = unit_vector( lwi + lwo );
   const auto cos2 = h.y() * h.y();
-	const auto sin2 = 1.0 - cos2 ;
+	const auto sin2 = max(0.0, 1.0 - cos2);
   
-  return m_alpha * m_alpha / ( M_PI * ( cos2 * m_alpha * m_alpha + sin2 ) * ( cos2 * m_alpha * m_alpha + sin2 ) );
+  const double denom = M_PI * m_alpha * m_alpha * ( cos2 + sin2 / ( m_alpha * m_alpha ) ) * ( cos2 + sin2 / ( m_alpha * m_alpha ) );
+  assert( std::isfinite( denom ) );
+  return 1.0 / denom;
+
+  // return m_alpha * m_alpha / ( M_PI * ( cos2 * m_alpha * m_alpha + sin2 ) * ( cos2 * m_alpha * m_alpha + sin2 ) );
 }
 
 //幾何項を返す
@@ -124,9 +133,11 @@ double g(const vec3 &lwi, const vec3 &lwo, const double &m_alpha)
 {
 	const double tan_i = 1.0 / ( lwi.y() * lwi.y() ) - 1.0; assert( std::isfinite( tan_i ) );
 	const double tan_o = 1.0 / ( lwo.y() * lwo.y() ) - 1.0; assert( std::isfinite( tan_o ) );
+  
 	const double lambda_i = ( - 1.0 + sqrt( 1.0 + m_alpha * m_alpha * tan_i ) ) / 2.0; assert( std::isfinite( lambda_i ) );
 	const double lambda_o = ( - 1.0 + sqrt( 1.0 + m_alpha * m_alpha * tan_o ) ) / 2.0; assert( std::isfinite( lambda_o ) );
-	return 1.0 / ( 1.0 + lambda_i + lambda_o );
+	
+  return 1.0 / ( 1.0 + lambda_i + lambda_o );
 }
 
 double f(const vec3& lwi, const vec3& lwo, double f0)
@@ -142,11 +153,11 @@ double BRDF_Specular_GGX(vec3 N, vec3 L, vec3 V, double roughness, double f0)
 {
     L = to_local(L);
     V = to_local(V);
-    vec3 H = unit_vector(L + V);
-    double NoV = dot(N, V);
-    double NoL = dot(N, L);
+    // vec3 H = unit_vector(L + V);
+    double NoV = V.y();// dot(N, V);
+    double NoL = L.y();// dot(N, L);
     
-    NoV = abs(NoV), NoL = abs(NoL);
+    // NoV = abs(NoV), NoL = abs(NoL);
 
     // if(NoV <= 0.0 || NoL <= 0.0)
     //  return 0.0;
@@ -160,40 +171,46 @@ double BRDF_Specular_GGX(vec3 N, vec3 L, vec3 V, double roughness, double f0)
     double G = g(L, V, roughness);
     // フレネル
     double F = f(L, V, f0);
+    // cout << D * G * F / (4.0 * NoL * NoV) << endl;
     // スペキュラBRDF
     return D * G * F / (4.0 * NoL * NoV);
 }
 
 // 颜色着色
 vec3 color(const ray& in, int depth) {
+  
+  #ifdef LIGHT_SAMPLING
+    assert(depth<2);
+  #endif
+  
   hit_record rec;
-  if (world.hitanything(in, 0.001, DBL_MAX, rec)) {
+  if (world.hitanything(in, 0.0001, DBL_MAX, rec)) {
     
-    if(rec.p.x()<=0.0001 && rec.p.x()>=-0.0001  && rec.p.y() <=0.01 && depth==0)
-      return vec3(0, 0, 0);
+    //if(rec.p.x()<=0.0001 && rec.p.x()>=-0.0001  && rec.p.y() <=0.01 && depth==0)
+      //return vec3(0, 0, 0);
     
     // 反射光
     ray scattered;
     // 吸收度
     vec3 attenuation;
     vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
-    if (depth < 10 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
+    if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
-      // double brdf = 1.0 / PI;
+      //double brdf = 1.0 / PI;
       assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
-      double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
+     double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
                                       unit_vector(scattered.direction()), 
                                       unit_vector(-in.direction()), 
-                                      0.2, 1); 
+                                      0.2, 1.0); 
       // cout << brdf << endl;
 
       #ifdef COSINE_SAMPLING
-      return emitted + attenuation * color(scattered, depth + 1);
+      return brdf * PI * color(scattered, depth + 1);
       #endif
 
       #ifdef LIGHT_SAMPLING
-      return emitted + attenuation * brdf * max(cos_theta, 0.0)* color(scattered, depth + 1);
+      return brdf * max(cos_theta, 0.0)* color(scattered, depth + 1);
       #endif
     }
     else {
@@ -222,7 +239,7 @@ vec3 color(const ray& in, int depth) {
 std::vector<shared_ptr<hitable>> worldlist;
 void buildWorld() {
   getMTNB(vec3(0,1,0));
-  texture* whitelightptr = new constant_texture(vec3(0, 0, 0));
+  texture* whitelightptr = new constant_texture(vec3(1, 1, 1));
   texture* mikulightptr = new constant_texture(vec3(0.223, 0.773, 0.733) * 15);
   texture* mikuptr = new constant_texture(vec3(0.223, 0.773, 0.733));
   texture* redptr = new constant_texture(vec3(0.65, 0.05, 0.05));
@@ -247,7 +264,7 @@ void buildWorld() {
   worldlist.emplace_back(new rectangle_yz(0.4, 3.4, -1.5, 1.5, 0,
                                          new diffuse_light(whiteptr)));
   worldlist.emplace_back(
-     new rectangle_xz(-100, 100, -100, 100, 0, new lambertian(whiteptr)));
+     new rectangle_xz(-40, 40, -40, 40, 0, new lambertian(whiteptr)));
 
   // 一个玻璃球与一团玻璃球形状的烟雾
   // hitable* glasssphereptr =
@@ -276,7 +293,7 @@ int getfileline(string filename) {
 int main() {
   std::string err;
   std::string warn;
-  std::string filename = "ARCOS3_60712332.LDT";
+  
   if (!tiny_ldt<float>::load_ldt("photometry\\" + filename, err, warn, ldt)) {
     cout << "failed" << endl;
   }
@@ -312,8 +329,10 @@ int main() {
                     , ldt.luminous_intensity_distribution.begin()+ st*(sz)+sz)
     );
   }
-  for(auto v: intensityDis){
-    for(auto p: v)
+  for(auto& v: intensityDis){
+    for(auto& p: v)
+       //if(jyorandengine.jyoRandGetBool(0.01))
+        // p += 100;
       cout << p << " ";
     cout << endl;
   }
@@ -334,9 +353,7 @@ int main() {
 
 
   buildWorld();
-  vec3 lookfrom(0, 60, 0), lookat(0.000000000000001, 0, 0);
-  // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
-  // vec3 lookfrom(25, 5, 1.5), lookat(2, 0, 0);
+  
   camera cam(lookfrom, lookat, 45, double(nx) / double(ny), 0.0, 0.0);
 
   int pauseflag = 1;
@@ -386,7 +403,7 @@ int main() {
       int ig = int(255.99 * col[1]);
       int ib = int(255.99 * col[2]);
       ir = min(ir, 255), ig = min(ig, 255), ib = min(ib, 255);
-      assert(ir >=0 && ig>=0 && ib>=0);
+      assert(ir>=0 && ig>=0 && ib>=0);
       // ir = max(ir, 0), ig = max(ig, 0), ib = max(ib, 0);
       stringstream ss;
       ss << ir << " " << ig << " " << ib << "\n";
