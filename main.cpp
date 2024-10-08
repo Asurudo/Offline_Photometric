@@ -34,10 +34,10 @@ const double PI = 3.141592653;
 
 using namespace std;
 
-std::string filename = "ARCOS3_60712332.LDT";
-// vec3 lookfrom(0, 60, 0), lookat(0.0001, 0, 0);
+std::string filename = "MIREL_42925637.LDT";
+vec3 lookfrom(0, 60, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
-vec3 lookfrom(25, 5, 0), lookat(2, 0, 0);
+// vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
 
 Rand jyorandengine;
 hitable_list world;
@@ -95,7 +95,7 @@ float getIntesiy(float C, float gamma){
   float b = 1.0-(C/M_PI*180.0-e)/ldt.dc;
   float value1 = (a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1]);
   float value2 = (a*intensityDis[Cindex+1][gammaindex]+(1-a)*intensityDis[Cindex+1][gammaindex+1]);
-  return 300 * (b*value1 + (1-b)*value2)/683.f;
+  return 600 * (b*value1 + (1-b)*value2)/683.f;
 }
 
 vec3 m_t, m_b, m_n;
@@ -202,7 +202,7 @@ vec3 color(const ray& in, int depth) {
      double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
                                       unit_vector(scattered.direction()), 
                                       unit_vector(-in.direction()), 
-                                      0.2, 1.0); 
+                                      0.02, 1.0); 
       // cout << brdf << endl;
 
       #ifdef COSINE_SAMPLING
