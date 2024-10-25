@@ -1,4 +1,4 @@
-// #define COSINE_SAMPLING
+//#define COSINE_SAMPLING
 #define LIGHT_SAMPLING
 
 // 画布的长
@@ -35,9 +35,10 @@ const double PI = 3.141592653;
 using namespace std;
 
 std::string filename = "MIREL_42925637.LDT";
-vec3 lookfrom(0, 60, 0), lookat(0.0001, 0, 0);
+double roughness = 0.18;
+ vec3 lookfrom(0, 60, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
-// vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
+//vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
 
 Rand jyorandengine;
 hitable_list world;
@@ -80,6 +81,7 @@ tiny_ldt<float>::light ldt;
 vector<vector<float>> intensityDis;
 
 float getIntesiy(float C, float gamma){
+  return 50;
   assert(C>=0 && C<=2*M_PI && gamma>=0 && gamma<=M_PI);
   int Cindex = floor(C/M_PI*180.0/ldt.dc);
   int gammaindex = floor(gamma/M_PI*180.0/ldt.dg);
@@ -148,11 +150,51 @@ double f(const vec3& lwi, const vec3& lwo, double f0)
     return f0 + ( 1.0 - f0 ) * tmp;
 }
 
+
+float eval(const vec3& V, const vec3& L, const float alpha)
+{
+		if(V.y() <= 0)
+		{
+			return 0;
+		}
+
+		// masking
+		const float a_V = 1.0f / alpha / tanf(acosf(V.y()));
+		const float LambdaV = (V.y()<1.0f) ? 0.5f * (-1.0f + sqrtf(1.0f + 1.0f/a_V/a_V)) : 0.0f;
+    //const float LambdaV = (V.y()<1.0f) ? (1.0f - 1.259f*a_V + 0.396f*a_V*a_V) / (3.535f*a_V + 2.181f*a_V*a_V) : 0.0f;
+		const float G1 = 1.0f / (1.0f + LambdaV);
+
+		// shadowing
+		float G2;
+		if(L.y() <= 0.0f)
+			G2 = 0;
+		else
+		{
+			const float a_L = 1.0f / alpha / tanf(acosf(L.y()));
+			const float LambdaL = (L.y()<1.0f) ? 0.5f * (-1.0f + sqrtf(1.0f + 1.0f/a_L/a_L)) : 0.0f;
+      //const float LambdaL = (L.y()<1.0f) ? (1.0f - 1.259f*a_L + 0.396f*a_L*a_L) / (3.535f*a_L + 2.181f*a_L*a_L) : 0.0f;
+			G2 = 1.0f / (1.0f + LambdaV + LambdaL);
+		}
+
+		// D
+		const vec3 H = unit_vector(V+L);
+		const float slopex = H.x()/H.y();
+		const float slopez = H.z()/H.y();
+		float D = 1.0f / (1.0f + (slopex*slopex+slopez*slopez)/alpha/alpha);
+		D = D*D;
+		D = D / (3.14159f * alpha * alpha * H.y()*H.y()*H.y()*H.y());
+    //float D = expf(-(slopex*slopex + slopez*slopez)/(alpha*alpha)) / (3.14159f * alpha * alpha * H.y()*H.y()*H.y()*H.y());
+
+		float res = D * G2 / 4.0f / V.y();
+		return res;
+}
+
 // マクロ法線 光源L 照相机V ラフネス値 f0
 double BRDF_Specular_GGX(vec3 N, vec3 L, vec3 V, double roughness, double f0)
 {
     L = to_local(L);
     V = to_local(V);
+    return eval(V, L, roughness);
     // vec3 H = unit_vector(L + V);
     double NoV = V.y();// dot(N, V);
     double NoL = L.y();// dot(N, L);
@@ -186,8 +228,8 @@ vec3 color(const ray& in, int depth) {
   hit_record rec;
   if (world.hitanything(in, 0.0001, DBL_MAX, rec)) {
     
-    //if(rec.p.x()<=0.0001 && rec.p.x()>=-0.0001  && rec.p.y() <=0.01 && depth==0)
-      //return vec3(0, 0, 0);
+    if(rec.p.x()<=-0.0001)
+      return vec3(0, 0, 0);
     
     // 反射光
     ray scattered;
@@ -197,12 +239,12 @@ vec3 color(const ray& in, int depth) {
     if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
-      //double brdf = 1.0 / PI;
+      // double brdf = 1.0 / PI;
       assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
-     double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
+      double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
                                       unit_vector(scattered.direction()), 
                                       unit_vector(-in.direction()), 
-                                      0.02, 1.0); 
+                                      roughness, 1.0); 
       // cout << brdf << endl;
 
       #ifdef COSINE_SAMPLING
@@ -293,7 +335,7 @@ int getfileline(string filename) {
 int main() {
   std::string err;
   std::string warn;
-  
+
   if (!tiny_ldt<float>::load_ldt("photometry\\" + filename, err, warn, ldt)) {
     cout << "failed" << endl;
   }
@@ -346,6 +388,7 @@ int main() {
   int curline = getfileline(filename);
 
   ofstream mout;
+  filename += to_string(roughness);
   if (startoveragain)
     mout.open(filename + ".PPM");
   else
