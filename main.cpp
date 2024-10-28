@@ -35,10 +35,10 @@ const double PI = 3.141592653;
 using namespace std;
 
 std::string filename = "MIREL_42925637.LDT";
-double roughness = 0.18;
- vec3 lookfrom(0, 60, 0), lookat(0.0001, 0, 0);
+double roughness = 0.1;
+//vec3 lookfrom(0, 60, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
-//vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
+vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
 
 Rand jyorandengine;
 hitable_list world;
@@ -81,7 +81,6 @@ tiny_ldt<float>::light ldt;
 vector<vector<float>> intensityDis;
 
 float getIntesiy(float C, float gamma){
-  return 50;
   assert(C>=0 && C<=2*M_PI && gamma>=0 && gamma<=M_PI);
   int Cindex = floor(C/M_PI*180.0/ldt.dc);
   int gammaindex = floor(gamma/M_PI*180.0/ldt.dg);
@@ -228,8 +227,8 @@ vec3 color(const ray& in, int depth) {
   hit_record rec;
   if (world.hitanything(in, 0.0001, DBL_MAX, rec)) {
     
-    if(rec.p.x()<=-0.0001)
-      return vec3(0, 0, 0);
+    // if(rec.p.x()<=-0.0001)
+    //   return vec3(0, 0, 0);
     
     // 反射光
     ray scattered;
