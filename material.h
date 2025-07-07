@@ -48,6 +48,12 @@ class lambertian : public material {
                                             jyorandengine.jyoRandGetReal<double>(-1.5, 1.5))-rec.p));
     #endif
 
+    #ifdef LIGHT_DOUBLEAXIS_SAMPLE
+    scattered = ray(rec.p, unit_vector(vec3(jyorandengine.jyoRandGetReal<double>(-1.5, 1.5), 
+                                            1.0,
+                                            jyorandengine.jyoRandGetReal<double>(-1.5, 1.5))-rec.p));
+    #endif
+
     attenuation = textureptr->value(rec.u, rec.v, rec.p);
     return true;
   }

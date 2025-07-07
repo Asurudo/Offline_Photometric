@@ -1,5 +1,6 @@
 //#define COSINE_SAMPLING
-#define LIGHT_SAMPLING
+//#define LIGHT_SAMPLING
+#define LIGHT_DOUBLEAXIS_SAMPLE
 
 // 画布的长
 int nx = 800;
@@ -7,6 +8,7 @@ int nx = 800;
 int ny = 600;
 // 画布某一点的采样数量
 int ns = 100;
+
 
 #include <algorithm>
 #include <cfloat>
@@ -34,11 +36,18 @@ const double PI = 3.141592653;
 
 using namespace std;
 
-std::string filename = "MIREL_42925637.LDT";
-double roughness = 0.1;
+// double axis moment
+int n1 = 10;
+int n2 = 5;
+vec3 axis_w(0,1,0); 
+vec3 axis_v(1,1,1);
+
+std::string filename = "PANOS_60813872.LDT";
+double roughness = 0.05;
 //vec3 lookfrom(0, 60, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
-vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
+//vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
+vec3 lookfrom(-10, 3, 0), lookat(5, 1, 0);
 
 Rand jyorandengine;
 hitable_list world;
@@ -96,7 +105,7 @@ float getIntesiy(float C, float gamma){
   float b = 1.0-(C/M_PI*180.0-e)/ldt.dc;
   float value1 = (a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1]);
   float value2 = (a*intensityDis[Cindex+1][gammaindex]+(1-a)*intensityDis[Cindex+1][gammaindex+1]);
-  return 600 * (b*value1 + (1-b)*value2)/683.f;
+  return 600 * (b*value1 + (1-b)*value2)/683.f*10;
 }
 
 vec3 m_t, m_b, m_n;
@@ -154,7 +163,8 @@ float eval(const vec3& V, const vec3& L, const float alpha)
 {
 		if(V.y() <= 0)
 		{
-			return 0;
+      std::cout << "V.y() <= 0" << std::endl;
+      return 0;
 		}
 
 		// masking
@@ -185,6 +195,7 @@ float eval(const vec3& V, const vec3& L, const float alpha)
     //float D = expf(-(slopex*slopex + slopez*slopez)/(alpha*alpha)) / (3.14159f * alpha * alpha * H.y()*H.y()*H.y()*H.y());
 
 		float res = D * G2 / 4.0f / V.y();
+    //cout << res << endl;
 		return res;
 }
 
@@ -193,6 +204,7 @@ double BRDF_Specular_GGX(vec3 N, vec3 L, vec3 V, double roughness, double f0)
 {
     L = to_local(L);
     V = to_local(V);
+    //std::cout << eval(L, V, roughness) << std::endl;
     return eval(V, L, roughness);
     // vec3 H = unit_vector(L + V);
     double NoV = V.y();// dot(N, V);
@@ -239,12 +251,12 @@ vec3 color(const ray& in, int depth) {
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
       // double brdf = 1.0 / PI;
+      double brdf = (n1+2)/(2*PI);
       assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
-      double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
-                                      unit_vector(scattered.direction()), 
-                                      unit_vector(-in.direction()), 
-                                      roughness, 1.0); 
-      // cout << brdf << endl;
+      // double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
+      //                                 unit_vector(scattered.direction()), 
+      //                                 unit_vector(-in.direction()), 
+      //                                 roughness, 1.0); 
 
       #ifdef COSINE_SAMPLING
       return brdf * PI * color(scattered, depth + 1);
@@ -252,6 +264,10 @@ vec3 color(const ray& in, int depth) {
 
       #ifdef LIGHT_SAMPLING
       return brdf * max(cos_theta, 0.0)* color(scattered, depth + 1);
+      #endif
+
+      #ifdef LIGHT_DOUBLEAXIS_SAMPLE
+      return brdf * color(scattered, depth + 1);
       #endif
     }
     else {
@@ -270,6 +286,20 @@ vec3 color(const ray& in, int depth) {
       #ifdef LIGHT_SAMPLING
       return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
                                 /dot(rec.p-in.origin(), rec.p-in.origin()); // I/distance^2
+      #endif
+
+      #ifdef LIGHT_DOUBLEAXIS_SAMPLE
+      vec3 p2q = rec.p - in.origin();
+      axis_w = unit_vector(axis_w);
+      axis_v = unit_vector(axis_v);
+      double dam = pow(dot(axis_w, unit_vector(p2q)), n1) * pow(dot(axis_v, unit_vector(p2q)), n2);
+      double cos_theta_prime = dot(-unit_vector(p2q), vec3(0, -1, 0));
+      if(cos_theta_prime < 0.0)
+        cos_theta_prime = 0.0;
+      if(dam < 0.0)
+        dam = 0.0;
+      assert(cos_theta_prime >= 0.0 && dam >= 0.0);
+      return emitted*dam*cos_theta_prime/dot(rec.p-in.origin(), rec.p-in.origin())*(1.5-(-1.5)) * (1.5-(-1.5))*10;
       #endif
     }
   } else {
@@ -301,9 +331,14 @@ void buildWorld() {
                           jyorandengine.jyoRandGetReal<double>(0, 1))));
   texture* noisetextptr = new noise_texture(0.01);
 
-  // 灯
-  worldlist.emplace_back(new rectangle_yz(0.4, 3.4, -1.5, 1.5, 0,
-                                         new diffuse_light(whiteptr)));
+  // // 灯
+  // worldlist.emplace_back(new rectangle_yz(0.4, 3.4, -1.5, 1.5, 0,
+  //                                        new diffuse_light(whiteptr)));
+
+  worldlist.emplace_back(
+    new rectangle_xz(-1.5, 1.5, -1.5, 1.5, 1.0, new diffuse_light(whiteptr))
+  );
+                                       
   worldlist.emplace_back(
      new rectangle_xz(-40, 40, -40, 40, 0, new lambertian(whiteptr)));
 
