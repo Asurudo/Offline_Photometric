@@ -7,7 +7,7 @@ int nx = 800;
 // 画布的宽
 int ny = 600;
 // 画布某一点的采样数量
-int ns = 100;
+int ns = 1500;
 
 
 #include <algorithm>
@@ -37,10 +37,10 @@ const double PI = 3.141592653;
 using namespace std;
 
 // double axis moment
-int n1 = 10;
-int n2 = 5;
+int n1 = 5;
+int n2 = 1;
 vec3 axis_w(0,1,0); 
-vec3 axis_v(1,1,1);
+vec3 axis_v(0,1,0);
 
 std::string filename = "PANOS_60813872.LDT";
 double roughness = 0.05;
@@ -299,7 +299,8 @@ vec3 color(const ray& in, int depth) {
       if(dam < 0.0)
         dam = 0.0;
       assert(cos_theta_prime >= 0.0 && dam >= 0.0);
-      return emitted*dam*cos_theta_prime/dot(rec.p-in.origin(), rec.p-in.origin())*(1.5-(-1.5)) * (1.5-(-1.5))*10;
+      double rnt = ((1.5-(-1.5)) * (1.5-(-1.5))*dam*cos_theta_prime)/(dot(rec.p-in.origin(), rec.p-in.origin()));
+      return vec3(rnt, rnt, rnt);
       #endif
     }
   } else {
