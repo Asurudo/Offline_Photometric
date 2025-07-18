@@ -1,13 +1,14 @@
 //#define COSINE_SAMPLING
 //#define LIGHT_SAMPLING
-#define LIGHT_DOUBLEAXIS_SAMPLE
+//#define LIGHT_DOUBLEAXIS_SAMPLE
+#define Light_TRIPLEAXIS_SAMPLE
 
 // 画布的长
 int nx = 800;
 // 画布的宽
 int ny = 600;
 // 画布某一点的采样数量
-int ns = 1500;
+int ns = 100;
 
 
 #include <algorithm>
@@ -36,11 +37,22 @@ const double PI = 3.141592653;
 
 using namespace std;
 
+#ifdef LIGHT_DOUBLEAXIS_SAMPLE
 // double axis moment
-int n1 = 5;
-int n2 = 1;
-vec3 axis_w(0,1,0); 
+int n1 = 10;
+int n2 = 5;
+vec3 axis_w(10,1,1); 
 vec3 axis_v(0,1,0);
+#endif
+
+#ifdef Light_TRIPLEAXIS_SAMPLE
+// triple axis moment
+int n1 = 10;
+int n2 = 5;
+vec3 a(1,1,1); 
+vec3 b(0,1,0);
+vec3 c(0,1,-1);
+#endif
 
 std::string filename = "PANOS_60813872.LDT";
 double roughness = 0.05;
@@ -229,6 +241,23 @@ double BRDF_Specular_GGX(vec3 N, vec3 L, vec3 V, double roughness, double f0)
     return D * G * F / (4.0 * NoL * NoV);
 }
 
+
+// inline double safe_pow(double base, int exponent) {
+//     if (base <= 0.0) return 0.0;
+//     if (exponent == 0) return 1.0;
+//     if (exponent == 1) return base;
+
+//     double result = 1.0;
+//     double factor = base;
+
+//     while (exponent > 0) {
+//         if (exponent & 1) result *= factor;
+//         factor *= factor*2;
+//         exponent >>= 1;
+//     }
+//     return result;
+// }
+
 // 颜色着色
 vec3 color(const ray& in, int depth) {
   
@@ -269,6 +298,10 @@ vec3 color(const ray& in, int depth) {
       #ifdef LIGHT_DOUBLEAXIS_SAMPLE
       return brdf * color(scattered, depth + 1);
       #endif
+
+      #ifdef Light_TRIPLEAXIS_SAMPLE
+      return brdf * color(scattered, depth + 1);
+      #endif
     }
     else {
       // 光源
@@ -292,14 +325,34 @@ vec3 color(const ray& in, int depth) {
       vec3 p2q = rec.p - in.origin();
       axis_w = unit_vector(axis_w);
       axis_v = unit_vector(axis_v);
-      double dam = pow(dot(axis_w, unit_vector(p2q)), n1) * pow(dot(axis_v, unit_vector(p2q)), n2);
-      double cos_theta_prime = dot(-unit_vector(p2q), vec3(0, -1, 0));
-      if(cos_theta_prime < 0.0)
-        cos_theta_prime = 0.0;
+      long double dam = pow( (long double) dot(axis_w, unit_vector(p2q)), n1 ) * pow((long double)dot(axis_v, unit_vector(p2q)), n2);
       if(dam < 0.0)
         dam = 0.0;
+      //double dam = damF(n1, n2, axis_w, axis_v, unit_vector(p2q));
+      //std::cout << "dam: " << dam << std::endl;
+      double cos_theta_prime = dot(-unit_vector(p2q), vec3(0, -1, 0));
+      if(cos_theta_prime < 0.0)
+        assert(0==1);
+      if(dam < 0.0)
+        assert(0==1);
       assert(cos_theta_prime >= 0.0 && dam >= 0.0);
       double rnt = ((1.5-(-1.5)) * (1.5-(-1.5))*dam*cos_theta_prime)/(dot(rec.p-in.origin(), rec.p-in.origin()));
+      return vec3(rnt, rnt, rnt);
+      #endif
+
+      #ifdef Light_TRIPLEAXIS_SAMPLE
+      vec3 p2q = rec.p - in.origin();
+      a = unit_vector(a);
+      b = unit_vector(b);
+      c = unit_vector(c);
+      long double tam = pow( (long double) dot(a, unit_vector(p2q)), n1 ) * pow((long double)dot(b, unit_vector(p2q)), n2) * (long double)dot(c, unit_vector(p2q));
+      if(tam < 0.0)
+        tam = 0.0;
+      //double dam = damF(n1, n2, axis_w, axis_v, unit_vector(p2q));
+      //std::cout << "dam: " << dam << std::endl;
+      double cos_theta_prime = dot(-unit_vector(p2q), vec3(0, -1, 0));
+      assert(cos_theta_prime >= 0.0 && tam >= 0.0);
+      double rnt = ((1.5-(-1.5)) * (1.5-(-1.5))*tam*cos_theta_prime)/(dot(rec.p-in.origin(), rec.p-in.origin()));
       return vec3(rnt, rnt, rnt);
       #endif
     }
