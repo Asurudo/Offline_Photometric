@@ -38,7 +38,7 @@ class lambertian : public material {
   }
   virtual bool scatter(const ray& r_in, const hit_record& rec,
                        vec3& attenuation, ray& scattered) const override {
-    #ifdef COSINE_SAMPLING
+    #if defined(LIGHT_DOUBLEAXIS_SAMPLE) || defined(COSINE_DOUBLEAXIS_SAMPLE)
     scattered = reflect(r_in, rec);
     #endif
 
