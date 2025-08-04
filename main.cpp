@@ -9,7 +9,7 @@ int nx = 800;
 // 画布的宽
 int ny = 600;
 // 画布某一点的采样数量
-int ns = 2000;
+int ns = 100;
 
 
 #include <algorithm>
@@ -48,10 +48,10 @@ vec3 axis_v(0,1,0);
 
 #ifdef Light_TRIPLEAXIS_SAMPLE
 // triple axis moment
-int n1 = 20;
-int n2 = 10;
-vec3 a(1,1,0); 
-vec3 b(0,1,1);
+int n1 = 22;
+int n2 = 1;
+vec3 a(1,0,0); 
+vec3 b(1,0,0);
 vec3 c(0,1,0);
 #endif
 
@@ -59,8 +59,8 @@ std::string filename = "PANOS_60813872.LDT";
 double roughness = 0.05;
 //vec3 lookfrom(0, 60, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
-//vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
-vec3 lookfrom(-10, 3, 0), lookat(5, 1, 0);
+vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
+// vec3 lookfrom(-10, 3, 0), lookat(5, 1, 0);
 
 Rand jyorandengine;
 hitable_list world;
@@ -278,8 +278,8 @@ vec3 color(const ray& in, int depth) {
   hit_record rec;
   if (world.hitanything(in, 0.0001, DBL_MAX, rec)) {
     
-    // if(rec.p.x()<=-0.0001)
-    //   return vec3(0, 0, 0);
+    if(rec.p.x()<0)
+      return vec3(0, 0, 0);
     
     // 反射光
     ray scattered;
@@ -418,13 +418,13 @@ void buildWorld() {
                           jyorandengine.jyoRandGetReal<double>(0, 1))));
   texture* noisetextptr = new noise_texture(0.01);
 
-  // // 灯
-  // worldlist.emplace_back(new rectangle_yz(0.4, 3.4, -1.5, 1.5, 0,
-  //                                        new diffuse_light(whiteptr)));
+  // 灯
+  worldlist.emplace_back(new rectangle_yz(0.4, 3.4, -1.5, 1.5, 0,
+                                         new diffuse_light(whiteptr)));
 
-  worldlist.emplace_back(
-    new rectangle_xz(-1.5, 1.5, -1.5, 1.5, 1.0, new diffuse_light(whiteptr))
-  );
+  // worldlist.emplace_back(
+  //   new rectangle_xz(-1.5, 1.5, -1.5, 1.5, 1.0, new diffuse_light(whiteptr))
+  // );
                                        
   worldlist.emplace_back(
      new rectangle_xz(-40, 40, -40, 40, 0, new lambertian(whiteptr)));
