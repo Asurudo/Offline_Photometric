@@ -60,7 +60,10 @@
         "span": "cpp",
         "variant": "cpp",
         "cassert": "cpp",
-        "cstring": "cpp"
+        "cstring": "cpp",
+        "semaphore": "cpp",
+        "stop_token": "cpp",
+        "thread": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

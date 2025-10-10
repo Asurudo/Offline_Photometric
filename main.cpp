@@ -9,7 +9,7 @@ int nx = 800;
 // 画布的宽
 int ny = 600;
 // 画布某一点的采样数量
-int ns = 100;
+int ns = 50;
 
 
 #include <algorithm>
@@ -48,15 +48,15 @@ vec3 axis_v(0,1,0);
 
 #ifdef Light_TRIPLEAXIS_SAMPLE
 // triple axis moment
-int n1 = 22;
+int n1 = 1;
 int n2 = 1;
 vec3 a(1,0,0); 
 vec3 b(1,0,0);
 vec3 c(0,1,0);
 #endif
 
-std::string filename = "PANOS_60813872.LDT";
-double roughness = 0.05;
+std::string filename = "ARCOS3_60712332.LDT";
+double roughness = 1.0;
 //vec3 lookfrom(0, 60, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
 vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
@@ -118,7 +118,7 @@ float getIntesiy(float C, float gamma){
   float b = 1.0-(C/M_PI*180.0-e)/ldt.dc;
   float value1 = (a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1]);
   float value2 = (a*intensityDis[Cindex+1][gammaindex]+(1-a)*intensityDis[Cindex+1][gammaindex+1]);
-  return 600 * (b*value1 + (1-b)*value2)/683.f*10;
+  return 600 * (b*value1 + (1-b)*value2)/683.f;
 }
 
 vec3 m_t, m_b, m_n;
@@ -268,6 +268,21 @@ double gain(int n, int m, double dot_wv, double raw) {
     return pow(raw, 1.0 / gamma);
 }
 
+long double evalPolynomialDot(const vec3& a, const vec3& p2q, const std::vector<long double>& coeffs)
+{
+    long double x = std::clamp((long double)dot(a, p2q), -1.0L, 1.0L);
+    long double result = 0.0L;
+    long double pow_x = 1.0L; // x^0
+
+    for (size_t l = 0; l < coeffs.size(); ++l)
+    {
+        result += coeffs[l] * pow_x;
+        pow_x *= x;
+    }
+    return result;
+}
+
+
 // 颜色着色
 vec3 color(const ray& in, int depth) {
   
@@ -289,8 +304,8 @@ vec3 color(const ray& in, int depth) {
     if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
-      // double brdf = 1.0 / PI;
-      double brdf = (n1+2)/(2*PI);
+       double brdf = 1.0 / PI;
+      //double brdf = (n1+2)/(2*PI);
       assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
       // double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
       //                                 unit_vector(scattered.direction()), 
@@ -378,7 +393,21 @@ vec3 color(const ray& in, int depth) {
       a = unit_vector(a);
       b = unit_vector(b);
       c = unit_vector(c);
-      long double tam = pow( (long double) dot(a, p2q), n1 ) * pow( (long double)dot(b, p2q), n2) *(long double)dot(c, p2q);
+      std::vector<long double> coeffs = {-1.096485e+00, -2.577838e+01, 5.420335e+02, 4.552584e+03, -4.355836e+04,
+-2.362823e+05, 1.374349e+06, 5.707828e+06, -2.259325e+07, -7.797498e+07,
+2.225889e+08, 6.697621e+08, -1.424235e+09, -3.855604e+09, 6.216836e+09,
+1.548025e+10, -1.907313e+10, -4.440424e+10, 4.178495e+10, 9.209833e+10,
+-6.561986e+10, -1.382856e+11, 7.323184e+10, 1.487287e+11, -5.664830e+10,
+-1.115967e+11, 2.885385e+10, 5.543345e+10, -8.698482e+09, -1.637076e+10,
+1.175215e+09, 2.174947e+09
+
+};
+      long double kinji =  600.0L / 683.0L * evalPolynomialDot(-a, p2q, coeffs) * 0.05;
+      if(kinji < 0.0)
+        kinji = 0;
+      //std::cout << "kinji: " << kinji << std::endl;
+      long double tam =  kinji * pow( (long double)dot(b, p2q), n2) * (long double)dot(c, p2q);
+       //* pow( (long double)dot(b, p2q), n2) 
       if(tam < 0.0)
         tam = -tam;
       //double dam = damF(n1, n2, axis_w, axis_v, unit_vector(p2q));
@@ -386,7 +415,7 @@ vec3 color(const ray& in, int depth) {
       double cos_theta_prime = dot(-p2q, vec3(0, -1, 0));
       assert(cos_theta_prime >= 0.0 && tam >= 0.0);
       double rnt = ((1.5-(-1.5)) * (1.5-(-1.5))*tam*cos_theta_prime)/(dot(rec.p-in.origin(), rec.p-in.origin()));
-      return 60*vec3(rnt, rnt, rnt);
+      return vec3(rnt, rnt, rnt);
       #endif
     }
   } else {
