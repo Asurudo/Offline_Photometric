@@ -55,7 +55,7 @@ vec3 b(1,0,0);
 vec3 c(0,1,0);
 #endif
 
-std::string filename = "ARCOS3_60712332.LDT";
+std::string filename = "PANOS_60813872.LDT";
 double roughness = 1.0;
 //vec3 lookfrom(0, 60, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
@@ -393,28 +393,26 @@ vec3 color(const ray& in, int depth) {
       a = unit_vector(a);
       b = unit_vector(b);
       c = unit_vector(c);
-      std::vector<long double> coeffs = {-1.096485e+00, -2.577838e+01, 5.420335e+02, 4.552584e+03, -4.355836e+04,
--2.362823e+05, 1.374349e+06, 5.707828e+06, -2.259325e+07, -7.797498e+07,
-2.225889e+08, 6.697621e+08, -1.424235e+09, -3.855604e+09, 6.216836e+09,
-1.548025e+10, -1.907313e+10, -4.440424e+10, 4.178495e+10, 9.209833e+10,
--6.561986e+10, -1.382856e+11, 7.323184e+10, 1.487287e+11, -5.664830e+10,
--1.115967e+11, 2.885385e+10, 5.543345e+10, -8.698482e+09, -1.637076e+10,
-1.175215e+09, 2.174947e+09
+      std::vector<long double> coeffs = {0.137186, 6.408056, -6.661228, -232.43249, -10.769586,
+2233.963044, 386.35793, -9578.9562, -953.511396, 24101.377552,
+5640.484485, -27899.728736, -7093.580721, 14987.383269, 2425.774713,
+-3229.964561
+
 
 };
-      long double kinji =  600.0L / 683.0L * evalPolynomialDot(-a, p2q, coeffs) * 0.05;
+      long double kinji =  600.0L / 683.0L * evalPolynomialDot(-a, p2q, coeffs) * 0.11;
       if(kinji < 0.0)
         kinji = 0;
       //std::cout << "kinji: " << kinji << std::endl;
-      long double tam =  kinji * pow( (long double)dot(b, p2q), n2) * (long double)dot(c, p2q);
+      long double tam =  kinji * (long double)dot(c, p2q);
        //* pow( (long double)dot(b, p2q), n2) 
       if(tam < 0.0)
-        tam = -tam;
+        tam = 0;
       //double dam = damF(n1, n2, axis_w, axis_v, unit_vector(p2q));
       //std::cout << "dam: " << dam << std::endl;
-      double cos_theta_prime = dot(-p2q, vec3(0, -1, 0));
-      assert(cos_theta_prime >= 0.0 && tam >= 0.0);
-      double rnt = ((1.5-(-1.5)) * (1.5-(-1.5))*tam*cos_theta_prime)/(dot(rec.p-in.origin(), rec.p-in.origin()));
+      //double cos_theta_prime = dot(-p2q, vec3(0, -1, 0));
+      //assert(cos_theta_prime >= 0.0 && tam >= 0.0);
+      double rnt = ((1.5-(-1.5)) * (1.5-(-1.5))*tam)/(dot(rec.p-in.origin(), rec.p-in.origin()));//cos_theta_prime
       return vec3(rnt, rnt, rnt);
       #endif
     }
