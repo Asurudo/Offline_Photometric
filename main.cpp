@@ -1,7 +1,7 @@
 //#define COSINE_SAMPLING
-#define LIGHT_SAMPLING
+//#define LIGHT_SAMPLING
 //#define LIGHT_DOUBLEAXIS_SAMPLE
-//#define Light_TRIPLEAXIS_SAMPLE
+#define Light_TRIPLEAXIS_SAMPLE
 //#define COSINE_DOUBLEAXIS_SAMPLE
 
 // 画布的长
@@ -55,11 +55,11 @@ vec3 b(1,0,0);
 vec3 c(0,1,0);
 #endif
 
-std::string filename = "PERLUCE_42182932.LDT";
+std::string filename = "MIREL_42925637.LDT";
 double roughness = 1.0;
-//vec3 lookfrom(0, 60, 0), lookat(0.0001, 0, 0);
+vec3 lookfrom(0, 40, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
-vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
+//vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
 // vec3 lookfrom(-10, 3, 0), lookat(5, 1, 0);
 
 Rand jyorandengine;
@@ -118,7 +118,7 @@ float getIntesiy(float C, float gamma){
   float b = 1.0-(C/M_PI*180.0-e)/ldt.dc;
   float value1 = (a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1]);
   float value2 = (a*intensityDis[Cindex+1][gammaindex]+(1-a)*intensityDis[Cindex+1][gammaindex+1]);
-  return 600 * (b*value1 + (1-b)*value2)/683.f;
+  return 600 * (b*value1 + (1-b)*value2)/683.f*0.22f;
 }
 
 vec3 m_t, m_b, m_n;
@@ -393,10 +393,14 @@ vec3 color(const ray& in, int depth) {
       a = unit_vector(a);
       b = unit_vector(b);
       c = unit_vector(c);
-      std::vector<long double> coeffs = {7.057587, 16.81473, 70.759595, 387.436317, 459.11732, -131.905957, -267.632064
+      std::vector<long double> coeffs = {6.200778, -64.293362, -1001.012961, 3466.67018,
+29400.228274, -46580.330338, -316423.139219, 272630.219065,
+1672964.148326, -802707.10472, -4863254.383978, 1273630.816809,
+8165294.452547, -1070395.240507, -7870356.981834, 424292.431066,
+4035491.522, -53995.908433, -851846.750583
 
 };
-      long double kinji =  600.0L / 683.0L * evalPolynomialDot(-a, p2q, coeffs) * 0.115;
+      long double kinji =  600.0L / 683.0L * evalPolynomialDot(-a, p2q, coeffs) * 0.024;
       if(kinji < 0.0)
         kinji = 0;
       //std::cout << "kinji: " << kinji << std::endl;
