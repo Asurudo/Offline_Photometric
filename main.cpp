@@ -1,7 +1,7 @@
 //#define COSINE_SAMPLING
-//#define LIGHT_SAMPLING
+#define LIGHT_SAMPLING
 //#define LIGHT_DOUBLEAXIS_SAMPLE
-#define Light_TRIPLEAXIS_SAMPLE
+//#define Light_TRIPLEAXIS_SAMPLE
 //#define COSINE_DOUBLEAXIS_SAMPLE
 
 // 画布的长
@@ -9,7 +9,7 @@ int nx = 800;
 // 画布的宽
 int ny = 600;
 // 画布某一点的采样数量
-int ns = 50;
+int ns = 1000;
 
 
 #include <algorithm>
@@ -55,7 +55,7 @@ vec3 b(1,0,0);
 vec3 c(0,1,0);
 #endif
 
-std::string filename = "PANOS_60813872.LDT";
+std::string filename = "PERLUCE_42182932.LDT";
 double roughness = 1.0;
 //vec3 lookfrom(0, 60, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
@@ -393,14 +393,10 @@ vec3 color(const ray& in, int depth) {
       a = unit_vector(a);
       b = unit_vector(b);
       c = unit_vector(c);
-      std::vector<long double> coeffs = {0.137186, 6.408056, -6.661228, -232.43249, -10.769586,
-2233.963044, 386.35793, -9578.9562, -953.511396, 24101.377552,
-5640.484485, -27899.728736, -7093.580721, 14987.383269, 2425.774713,
--3229.964561
-
+      std::vector<long double> coeffs = {7.057587, 16.81473, 70.759595, 387.436317, 459.11732, -131.905957, -267.632064
 
 };
-      long double kinji =  600.0L / 683.0L * evalPolynomialDot(-a, p2q, coeffs) * 0.11;
+      long double kinji =  600.0L / 683.0L * evalPolynomialDot(-a, p2q, coeffs) * 0.115;
       if(kinji < 0.0)
         kinji = 0;
       //std::cout << "kinji: " << kinji << std::endl;

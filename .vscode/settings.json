@@ -63,7 +63,8 @@
         "cstring": "cpp",
         "semaphore": "cpp",
         "stop_token": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "cfloat": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
