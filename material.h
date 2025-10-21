@@ -38,29 +38,29 @@ class lambertian : public material {
   }
   virtual bool scatter(const ray& r_in, const hit_record& rec,
                        vec3& attenuation, ray& scattered) const override {
-    #if defined(LIGHT_DOUBLEAXIS_SAMPLE) || defined(COSINE_DOUBLEAXIS_SAMPLE)
+    #if defined(COSINE_SAMPLING) || defined(COSINE_DOUBLEAXIS_SAMPLE)
     scattered = reflect(r_in, rec);
     #endif
 
     #ifdef LIGHT_SAMPLING
-    scattered = ray(rec.p, unit_vector(vec3(0, 
-                                            jyorandengine.jyoRandGetReal<double>(0.4, 3.4),
-                                            jyorandengine.jyoRandGetReal<double>(-1.5, 1.5))-rec.p));
+    scattered = ray(rec.p, vec3(0, 
+                                jyorandengine.jyoRandGetReal<double>(0.4, 3.4),
+                                jyorandengine.jyoRandGetReal<double>(-1.5, 1.5))-rec.p);
     #endif
 
     #ifdef LIGHT_DOUBLEAXIS_SAMPLE
-    scattered = ray(rec.p, unit_vector(vec3(jyorandengine.jyoRandGetReal<double>(-1.5, 1.5), 
+    scattered = ray(rec.p, (vec3(jyorandengine.jyoRandGetReal<double>(-1.5, 1.5), 
                                             1.0,
                                             jyorandengine.jyoRandGetReal<double>(-1.5, 1.5))-rec.p));
     #endif
 
     #ifdef Light_TRIPLEAXIS_SAMPLE
-    // scattered = ray(rec.p, unit_vector(vec3(jyorandengine.jyoRandGetReal<double>(-1.5, 1.5), 
+    // scattered = ray(rec.p, (vec3(jyorandengine.jyoRandGetReal<double>(-1.5, 1.5), 
     //                                         1.0,
     //                                         jyorandengine.jyoRandGetReal<double>(-1.5, 1.5))-rec.p));
-    scattered = ray(rec.p, unit_vector(vec3(0, 
-                                            jyorandengine.jyoRandGetReal<double>(0.4, 3.4),
-                                            jyorandengine.jyoRandGetReal<double>(-1.5, 1.5))-rec.p));
+    scattered = ray(rec.p, (vec3(0, 
+                                 jyorandengine.jyoRandGetReal<double>(0.4, 3.4),
+                                 jyorandengine.jyoRandGetReal<double>(-1.5, 1.5))-rec.p));
     #endif
 
     attenuation = textureptr->value(rec.u, rec.v, rec.p);

@@ -1,7 +1,7 @@
 //#define COSINE_SAMPLING
-//#define LIGHT_SAMPLING
+#define LIGHT_SAMPLING
 //#define LIGHT_DOUBLEAXIS_SAMPLE
-#define Light_TRIPLEAXIS_SAMPLE
+//#define Light_TRIPLEAXIS_SAMPLE
 //#define COSINE_DOUBLEAXIS_SAMPLE
 
 // 画布的长
@@ -55,7 +55,7 @@ vec3 b(1,0,0);
 vec3 c(0,1,0);
 #endif
 
-std::string filename = "MIREL_42925637.LDT";
+std::string filename = "SLOTLIGHT_42184612.LDT";
 double roughness = 1.0;
 vec3 lookfrom(0, 40, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
@@ -118,7 +118,7 @@ float getIntesiy(float C, float gamma){
   float b = 1.0-(C/M_PI*180.0-e)/ldt.dc;
   float value1 = (a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1]);
   float value2 = (a*intensityDis[Cindex+1][gammaindex]+(1-a)*intensityDis[Cindex+1][gammaindex+1]);
-  return 600 * (b*value1 + (1-b)*value2)/683.f*0.22f;
+  return 600 * (b*value1 + (1-b)*value2)/683.f*0.6f;
 }
 
 vec3 m_t, m_b, m_n;
@@ -574,12 +574,12 @@ int main() {
       for (int dj = 0; dj < sqrtns; dj++)
         for (int di = 0; di < sqrtns; di++) {
           // 蒙特卡洛-抖动采样，将像素划分成更密的小格子，每个格子里随机取一个点采样
-          // double uplus = -0.5 + resqrtns * ((double)di + jyorandengine.jyoRandGetReal<double>(-1, 1)); 
-          // double vplus = -0.5 + resqrtns * ((double)dj + jyorandengine.jyoRandGetReal<double>(-1, 1));
+          double uplus = -0.5 + resqrtns * ((double)di + jyorandengine.jyoRandGetReal<double>(-1, 1)); 
+          double vplus = -0.5 + resqrtns * ((double)dj + jyorandengine.jyoRandGetReal<double>(-1, 1));
 
           // 点(u,v)是点(i,j)的反离散化
-          double u = double(i) / double(nx);
-          double v = double(j) / double(ny);
+          double u = double(i+uplus) / double(nx);
+          double v = double(j+vplus) / double(ny);
 
           // 一条射向画布上点(u,v)的光线，注意(u,v)不是真实坐标而是在画布上的比例位置
           ray r = cam.get_ray(u, v);
