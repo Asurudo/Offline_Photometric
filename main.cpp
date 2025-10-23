@@ -55,11 +55,11 @@ vec3 b(1,0,0);
 vec3 c(0,1,0);
 #endif
 
-std::string filename = "SLOTLIGHT_42184612.LDT";
-double roughness = 1.0;
-vec3 lookfrom(0, 40, 0), lookat(0.0001, 0, 0);
+std::string filename = "ARCOS3_60712332.LDT";
+double roughness = 0.9;
+//vec3 lookfrom(0, 40, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
-//vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
+vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
 // vec3 lookfrom(-10, 3, 0), lookat(5, 1, 0);
 
 Rand jyorandengine;
@@ -118,7 +118,7 @@ float getIntesiy(float C, float gamma){
   float b = 1.0-(C/M_PI*180.0-e)/ldt.dc;
   float value1 = (a*intensityDis[Cindex][gammaindex]+(1-a)*intensityDis[Cindex][gammaindex+1]);
   float value2 = (a*intensityDis[Cindex+1][gammaindex]+(1-a)*intensityDis[Cindex+1][gammaindex+1]);
-  return 600 * (b*value1 + (1-b)*value2)/683.f*0.6f;
+  return 600 * (b*value1 + (1-b)*value2)/683.f;
 }
 
 vec3 m_t, m_b, m_n;
@@ -304,13 +304,13 @@ vec3 color(const ray& in, int depth) {
     if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
-       double brdf = 1.0 / PI;
+      // double brdf = 1.0 / PI;
       //double brdf = (n1+2)/(2*PI);
       assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
-      // double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
-      //                                 unit_vector(scattered.direction()), 
-      //                                 unit_vector(-in.direction()), 
-      //                                 roughness, 1.0); 
+       double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
+                                       unit_vector(scattered.direction()), 
+                                       unit_vector(-in.direction()), 
+                                       roughness, 1.0); 
 
       #ifdef COSINE_SAMPLING
       return brdf * PI * color(scattered, depth + 1);
@@ -334,7 +334,7 @@ vec3 color(const ray& in, int depth) {
     }
     else {
       // 光源
-      if (!depth) return vec3(1, 1, 1);
+      if (!depth) return vec3(10000, 10000, 10000);
       vec3 v = unit_vector(-in.direction());
       #ifdef COSINE_SAMPLING
       if(dot(unit_vector(-in.direction()), vec3(1, 0, 0))>0)
@@ -393,14 +393,12 @@ vec3 color(const ray& in, int depth) {
       a = unit_vector(a);
       b = unit_vector(b);
       c = unit_vector(c);
-      std::vector<long double> coeffs = {6.200778, -64.293362, -1001.012961, 3466.67018,
-29400.228274, -46580.330338, -316423.139219, 272630.219065,
-1672964.148326, -802707.10472, -4863254.383978, 1273630.816809,
-8165294.452547, -1070395.240507, -7870356.981834, 424292.431066,
-4035491.522, -53995.908433, -851846.750583
+      std::vector<long double> coeffs = {0.144143, 52.459705, 252.970041, -178.080511, -1622.200696,
+639.303423, 6098.938332, 1807.929518, -7358.603816, -3946.905254,
+2900.519717, 1896.74305
 
 };
-      long double kinji =  600.0L / 683.0L * evalPolynomialDot(-a, p2q, coeffs) * 0.024;
+      long double kinji =  600.0L / 683.0L * evalPolynomialDot(-a, p2q, coeffs) *0.115;
       if(kinji < 0.0)
         kinji = 0;
       //std::cout << "kinji: " << kinji << std::endl;
@@ -424,7 +422,7 @@ vec3 color(const ray& in, int depth) {
 std::vector<shared_ptr<hitable>> worldlist;
 void buildWorld() {
   getMTNB(vec3(0,1,0));
-  texture* whitelightptr = new constant_texture(vec3(1, 1, 1));
+  texture* whitelightptr = new constant_texture(vec3(1.0, 1.0, 1.0));
   texture* mikulightptr = new constant_texture(vec3(0.223, 0.773, 0.733) * 15);
   texture* mikuptr = new constant_texture(vec3(0.223, 0.773, 0.733));
   texture* redptr = new constant_texture(vec3(0.65, 0.05, 0.05));
@@ -447,7 +445,7 @@ void buildWorld() {
 
   // 灯
   worldlist.emplace_back(new rectangle_yz(0.4, 3.4, -1.5, 1.5, 0,
-                                         new diffuse_light(whiteptr)));
+                                         new diffuse_light(whitelightptr)));
 
   // worldlist.emplace_back(
   //   new rectangle_xz(-1.5, 1.5, -1.5, 1.5, 1.0, new diffuse_light(whiteptr))
@@ -574,12 +572,12 @@ int main() {
       for (int dj = 0; dj < sqrtns; dj++)
         for (int di = 0; di < sqrtns; di++) {
           // 蒙特卡洛-抖动采样，将像素划分成更密的小格子，每个格子里随机取一个点采样
-          double uplus = -0.5 + resqrtns * ((double)di + jyorandengine.jyoRandGetReal<double>(-1, 1)); 
-          double vplus = -0.5 + resqrtns * ((double)dj + jyorandengine.jyoRandGetReal<double>(-1, 1));
+          // double uplus = -0.5 + resqrtns * ((double)di + jyorandengine.jyoRandGetReal<double>(-1, 1)); 
+          // double vplus = -0.5 + resqrtns * ((double)dj + jyorandengine.jyoRandGetReal<double>(-1, 1));
 
           // 点(u,v)是点(i,j)的反离散化
-          double u = double(i+uplus) / double(nx);
-          double v = double(j+vplus) / double(ny);
+          double u = double(i) / double(nx);
+          double v = double(j) / double(ny);
 
           // 一条射向画布上点(u,v)的光线，注意(u,v)不是真实坐标而是在画布上的比例位置
           ray r = cam.get_ray(u, v);
