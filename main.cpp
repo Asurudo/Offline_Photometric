@@ -9,7 +9,7 @@ int nx = 800;
 // 画布的宽
 int ny = 600;
 // 画布某一点的采样数量
-int ns = 1000;
+int ns = 50;
 
 
 #include <algorithm>
@@ -55,7 +55,7 @@ vec3 b(1,0,0);
 vec3 c(0,1,0);
 #endif
 
-std::string filename = "ARCOS3_60712332.LDT";
+std::string filename = "SLOTLIGHT_42184612.LDT";
 double roughness = 0.9;
 //vec3 lookfrom(0, 40, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
@@ -393,9 +393,11 @@ vec3 color(const ray& in, int depth) {
       a = unit_vector(a);
       b = unit_vector(b);
       c = unit_vector(c);
-      std::vector<long double> coeffs = {0.144143, 52.459705, 252.970041, -178.080511, -1622.200696,
-639.303423, 6098.938332, 1807.929518, -7358.603816, -3946.905254,
-2900.519717, 1896.74305
+      std::vector<long double> coeffs = {-2.953827, -11.148854, 587.424725, 1081.168422,
+-18806.757947, -27559.609987, 228406.744683, 300225.425965,
+-1369026.904502, -1692529.301033, 4546344.802828, 5410330.973607,
+-8756154.753529, -10157627.905976, 9715338.886964, 11066556.938867,
+-5756347.667501, -6465646.154709, 1411625.166454, 1567145.006752
 
 };
       long double kinji =  600.0L / 683.0L * evalPolynomialDot(-a, p2q, coeffs) *0.115;
@@ -585,7 +587,7 @@ int main() {
         }
       // 取颜色的平均值
       col /= double(ns);
-
+      col *= 0.15; // 光源强度缩放
       // gamma修正，提升画面的质量
       col = vec3(pow(col[0], 1.0/2.2), pow(col[1], 1.0/2.2), pow(col[2], 1.0/2.2));
       int ir = int(255.99 * col[0]);
