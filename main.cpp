@@ -1,7 +1,7 @@
 //#define COSINE_SAMPLING
-#define LIGHT_SAMPLING
+//#define LIGHT_SAMPLING
 //#define LIGHT_DOUBLEAXIS_SAMPLE
-//#define Light_TRIPLEAXIS_SAMPLE
+#define Light_TRIPLEAXIS_SAMPLE
 //#define COSINE_DOUBLEAXIS_SAMPLE
 
 // 画布的长
@@ -40,10 +40,10 @@ using namespace std;
 
 #if defined(LIGHT_DOUBLEAXIS_SAMPLE) || defined(COSINE_DOUBLEAXIS_SAMPLE)
 // double axis moment
-int n1 = 45;
-int n2 = 25;
-vec3 axis_w(1,1,0); 
-vec3 axis_v(0,1,0);
+int n1 = 2;
+int n2 = 0;
+vec3 axis_w(0,1,1); 
+vec3 axis_v(1,3,0);
 #endif
 
 #ifdef Light_TRIPLEAXIS_SAMPLE
@@ -56,11 +56,11 @@ vec3 c(0,1,0);
 #endif
 
 std::string filename = "SLOTLIGHT_42184612.LDT";
-double roughness = 0.9;
+double roughness = 1.0;
 //vec3 lookfrom(0, 40, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
 vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
-// vec3 lookfrom(-10, 3, 0), lookat(5, 1, 0);
+//vec3 lookfrom(-10, 3, 0), lookat(5, 1, 0);
 
 Rand jyorandengine;
 hitable_list world;
@@ -293,8 +293,8 @@ vec3 color(const ray& in, int depth) {
   hit_record rec;
   if (world.hitanything(in, 0.0001, DBL_MAX, rec)) {
     
-    if(rec.p.x()<0)
-      return vec3(0, 0, 0);
+    //if(rec.p.x()<0)
+     // return vec3(0, 0, 0);
     
     // 反射光
     ray scattered;
@@ -305,12 +305,12 @@ vec3 color(const ray& in, int depth) {
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
       // double brdf = 1.0 / PI;
-      //double brdf = (n1+2)/(2*PI);
+      double brdf = (n1+2)/(2*PI);
       assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
-       double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
-                                       unit_vector(scattered.direction()), 
-                                       unit_vector(-in.direction()), 
-                                       roughness, 1.0); 
+      //  double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
+      //                                  unit_vector(scattered.direction()), 
+      //                                  unit_vector(-in.direction()), 
+      //                                  roughness, 1.0); 
 
       #ifdef COSINE_SAMPLING
       return brdf * PI * color(scattered, depth + 1);
@@ -366,23 +366,20 @@ vec3 color(const ray& in, int depth) {
       #ifdef LIGHT_DOUBLEAXIS_SAMPLE
       vec3 p2q = rec.p - in.origin();
       p2q = unit_vector(p2q);
-      axis_w = unit_vector(axis_w);
-      axis_v = unit_vector(axis_v);
+      
       long double dam_1 = pow((long double) dot(axis_w, p2q), n1);
       long double dam_2 = pow((long double) dot(axis_v, p2q), n2);
       //assert(dam_1 >= 0.0 && dam_2 >= 0.0);
       long double dam = dam_1 * dam_2;
-      if(dam < 0.0)
-        dam = -dam;
       //double dam = damF(n1, n2, axis_w, axis_v, unit_vector(p2q));
       //std::cout << "dam: " << dam << std::endl;
-      double cos_theta_prime = dot(-p2q, vec3(0, -1, 0));
-      if(cos_theta_prime < 0.0)
-        assert(0==1);
+      //double cos_theta_prime = dot(-p2q, vec3(0, -1, 0));
+      // if(cos_theta_prime < 0.0)
+      //   assert(0==1);
       if(dam < 0.0)
-        assert(0==1);
-      assert(cos_theta_prime >= 0.0 && dam >= 0.0);
-      double rnt = ((1.5-(-1.5)) * (1.5-(-1.5))*dam*cos_theta_prime)/(dot(rec.p-in.origin(), rec.p-in.origin()));
+       dam = 0.0;
+      //assert(dam >= 0.0);
+      double rnt = ((1.5-(-1.5)) * (1.5-(-1.5))*dam)/(dot(rec.p-in.origin(), rec.p-in.origin()));
       //rnt = gain(n1, n2, dot(axis_w, axis_v), rnt);
       return vec3(rnt, rnt, rnt) ;
       #endif
@@ -446,12 +443,12 @@ void buildWorld() {
   texture* noisetextptr = new noise_texture(0.01);
 
   // 灯
-  worldlist.emplace_back(new rectangle_yz(0.4, 3.4, -1.5, 1.5, 0,
-                                         new diffuse_light(whitelightptr)));
+  // worldlist.emplace_back(new rectangle_yz(0.4, 3.4, -1.5, 1.5, 0,
+  //                                        new diffuse_light(whitelightptr)));
 
-  // worldlist.emplace_back(
-  //   new rectangle_xz(-1.5, 1.5, -1.5, 1.5, 1.0, new diffuse_light(whiteptr))
-  // );
+  worldlist.emplace_back(
+    new rectangle_xz(-1.5, 1.5, -1.5, 1.5, 1.0, new diffuse_light(whiteptr))
+  );
                                        
   worldlist.emplace_back(
      new rectangle_xz(-40, 40, -40, 40, 0, new lambertian(whiteptr)));
@@ -481,6 +478,10 @@ int getfileline(string filename) {
 }
 
 int main() {
+  axis_w = unit_vector(axis_w);
+  axis_v = unit_vector(axis_v);
+  
+  
   std::string err;
   std::string warn;
 
@@ -587,7 +588,7 @@ int main() {
         }
       // 取颜色的平均值
       col /= double(ns);
-      col *= 0.15; // 光源强度缩放
+      //col *= 0.15; // 光源强度缩放
       // gamma修正，提升画面的质量
       col = vec3(pow(col[0], 1.0/2.2), pow(col[1], 1.0/2.2), pow(col[2], 1.0/2.2));
       int ir = int(255.99 * col[0]);
