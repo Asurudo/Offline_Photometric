@@ -1,7 +1,7 @@
 //#define COSINE_SAMPLING
-#define LIGHT_SAMPLING
+//#define LIGHT_SAMPLING
 //#define LIGHT_DOUBLEAXIS_SAMPLE
-//#define Light_TRIPLEAXIS_SAMPLE
+#define Light_TRIPLEAXIS_SAMPLE
 //#define COSINE_DOUBLEAXIS_SAMPLE
 
 // 画布的长
@@ -9,7 +9,7 @@ int nx = 800;
 // 画布的宽
 int ny = 600;
 // 画布某一点的采样数量
-int ns = 1000;
+int ns = 1024;
 
 
 #include <algorithm>
@@ -48,15 +48,15 @@ vec3 axis_v(0,1,0);
 
 #ifdef Light_TRIPLEAXIS_SAMPLE
 // triple axis moment
-int n1 = 1;
-int n2 = 1;
+int n1 = 30;
+int n2 = 20;
 vec3 a(1,0,0); 
-vec3 b(1,0,0);
+vec3 b(0,0,10);
 vec3 c(0,1,0);
 #endif
 
 std::string filename = "ARCOS3_60712332.LDT";
-double roughness = 0.9;
+double roughness = 1.0;
 //vec3 lookfrom(0, 40, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
 vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
@@ -305,12 +305,12 @@ vec3 color(const ray& in, int depth) {
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
       // double brdf = 1.0 / PI;
-      //double brdf = (n1+2)/(2*PI);
+      double brdf = 3*(std::max(n1, n2)+2)/(2*PI);
       assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
-       double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
-                                       unit_vector(scattered.direction()), 
-                                       unit_vector(-in.direction()), 
-                                       roughness, 1.0); 
+      // double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
+      //                                  unit_vector(scattered.direction()), 
+      //                                  unit_vector(-in.direction()), 
+      //                                  roughness, 1.0); 
 
       #ifdef COSINE_SAMPLING
       return brdf * PI * color(scattered, depth + 1);
@@ -391,26 +391,21 @@ vec3 color(const ray& in, int depth) {
       vec3 p2q = rec.p - in.origin();
       p2q = unit_vector(p2q);
       a = unit_vector(a);
-      b = unit_vector(b);
       c = unit_vector(c);
-      std::vector<long double> coeffs = {0.144143, 52.459705, 252.970041, -178.080511, -1622.200696,
-639.303423, 6098.938332, 1807.929518, -7358.603816, -3946.905254,
-2900.519717, 1896.74305
-
-};
-      long double kinji =  600.0L / 683.0L * evalPolynomialDot(-a, p2q, coeffs) *0.115;
-      if(kinji < 0.0)
-        kinji = 0;
-      //std::cout << "kinji: " << kinji << std::endl;
-      long double tam =  kinji * (long double)dot(c, p2q);
-       //* pow( (long double)dot(b, p2q), n2) 
+      vec3 t1 = unit_vector(vec3(0, 1.9, 0) - rec.p);
+      vec3 t2 = unit_vector(lookfrom - in.origin());
+      vec3 H = unit_vector((t1+t2));
+      b  = unit_vector(2*dot(c,t2)*c-t2);
+      b = unit_vector(b);
+      long double tam = pow( (long double) dot(a, unit_vector(p2q)), n1 ) * pow((long double)dot(b, unit_vector(p2q)), n2);
       if(tam < 0.0)
-        tam = 0;
+        tam = -tam;
+      double cos_theta_prime = dot(-unit_vector(p2q), vec3(1, 0, 0));
       //double dam = damF(n1, n2, axis_w, axis_v, unit_vector(p2q));
-      //std::cout << "dam: " << dam << std::endl;
+      //std::cout << "dam: " << dam << std::endl;s
       //double cos_theta_prime = dot(-p2q, vec3(0, -1, 0));
       //assert(cos_theta_prime >= 0.0 && tam >= 0.0);
-      double rnt = ((1.5-(-1.5)) * (1.5-(-1.5))*tam)/(dot(rec.p-in.origin(), rec.p-in.origin()));//cos_theta_prime
+      double rnt = ((1.5-(-1.5)) * (1.5-(-1.5))*tam*cos_theta_prime)/(dot(rec.p-in.origin(), rec.p-in.origin()));//cos_theta_prime
       return vec3(rnt, rnt, rnt);
       #endif
     }
