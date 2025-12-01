@@ -9,7 +9,7 @@ int nx = 800;
 // 画布的宽
 int ny = 600;
 // 画布某一点的采样数量
-int ns = 1024;
+int ns = 16384;
 
 
 #include <algorithm>
@@ -51,7 +51,7 @@ vec3 axis_v(0,1,0);
 int n1 = 30;
 int n2 = 20;
 vec3 a(1,0,0); 
-vec3 b(0,0,10);
+vec3 b(1,0,1);
 vec3 c(0,1,0);
 #endif
 
@@ -305,7 +305,7 @@ vec3 color(const ray& in, int depth) {
       // 余弦
       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
       // double brdf = 1.0 / PI;
-      double brdf = 3*(std::max(n1, n2)+2)/(2*PI);
+      double brdf = 260*(std::max(n1, n2)+2)/(2*PI);
       assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
       // double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
       //                                  unit_vector(scattered.direction()), 
@@ -392,12 +392,13 @@ vec3 color(const ray& in, int depth) {
       p2q = unit_vector(p2q);
       a = unit_vector(a);
       c = unit_vector(c);
-      vec3 t1 = unit_vector(vec3(0, 1.9, 0) - rec.p);
-      vec3 t2 = unit_vector(lookfrom - in.origin());
-      vec3 H = unit_vector((t1+t2));
-      b  = unit_vector(2*dot(c,t2)*c-t2);
       b = unit_vector(b);
-      long double tam = pow( (long double) dot(a, unit_vector(p2q)), n1 ) * pow((long double)dot(b, unit_vector(p2q)), n2);
+      // vec3 t1 = unit_vector(vec3(0, 1.9, 0) - rec.p);
+      // vec3 t2 = unit_vector(lookfrom - in.origin());
+      // vec3 H = unit_vector((t1+t2));
+      // b = unit_vector(2*dot(c,t2)*c-t2);
+      // b = unit_vector(b);
+      long double tam = pow( (long double) dot(a, unit_vector(p2q)), n1 ) * pow((long double)dot(b, unit_vector(p2q)), n2) * (long double)dot(c, p2q);
       if(tam < 0.0)
         tam = -tam;
       double cos_theta_prime = dot(-unit_vector(p2q), vec3(1, 0, 0));
