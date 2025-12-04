@@ -55,12 +55,12 @@ class lambertian : public material {
     #endif
 
     #ifdef Light_TRIPLEAXIS_SAMPLE
-    // scattered = ray(rec.p, (vec3(jyorandengine.jyoRandGetReal<double>(-1.5, 1.5), 
-    //                                         1.0,
-    //                                         jyorandengine.jyoRandGetReal<double>(-1.5, 1.5))-rec.p));
-    scattered = ray(rec.p, (vec3(0, 
-                                 jyorandengine.jyoRandGetReal<double>(0.4, 3.4),
-                                 jyorandengine.jyoRandGetReal<double>(-1.5, 1.5))-rec.p));
+    scattered = ray(rec.p, (vec3(jyorandengine.jyoRandGetReal<double>(-1.5, 1.5), 
+                                            2.0,
+                                            jyorandengine.jyoRandGetReal<double>(-1.5, 1.5))-rec.p));
+    // scattered = ray(rec.p, (vec3(0, 
+    //                              jyorandengine.jyoRandGetReal<double>(0.4, 3.4),
+    //                              jyorandengine.jyoRandGetReal<double>(-1.5, 1.5))-rec.p));
     #endif
 
     attenuation = textureptr->value(rec.u, rec.v, rec.p);
