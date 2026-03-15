@@ -9,7 +9,7 @@ int nx = 800;
 // 画布的宽
 int ny = 600;
 // 画布某一点的采样数量
-int ns = 1000;
+int ns = 50;
 
 
 #include <algorithm>
@@ -59,7 +59,7 @@ std::string filename = "ARCOS3_60712332.LDT";
 double roughness = 0.9;
 //vec3 lookfrom(0, 40, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
-vec3 lookfrom(25, 2, 0), lookat(0, 2, 0);
+vec3 lookfrom(15, 2, 0), lookat(0, 2, 0);
 // vec3 lookfrom(-10, 3, 0), lookat(5, 1, 0);
 
 Rand jyorandengine;
@@ -283,142 +283,292 @@ long double evalPolynomialDot(const vec3& a, const vec3& p2q, const std::vector<
 }
 
 
-// 颜色着色
-vec3 color(const ray& in, int depth) {
+// 即使是虚空也向前走一段距离，计算体积着色
+vec3 L(const ray& in, int depth) {
   
   #ifdef LIGHT_SAMPLING
     assert(depth<2);
   #endif
   
   hit_record rec;
-  if (world.hitanything(in, 0.0001, DBL_MAX, rec)) {
-    
-    if(rec.p.x()<0)
-      return vec3(0, 0, 0);
-    
-    // 反射光
-    ray scattered;
-    // 吸收度
-    vec3 attenuation;
-    vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
-    if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
-      // 余弦
-      double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
-      // double brdf = 1.0 / PI;
-      //double brdf = (n1+2)/(2*PI);
-      assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
-       double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
-                                       unit_vector(scattered.direction()), 
-                                       unit_vector(-in.direction()), 
-                                       roughness, 1.0); 
+  bool hit = world.hitanything(in, 0.0001, DBL_MAX, rec);
 
-      #ifdef COSINE_SAMPLING
-      return brdf * PI * color(scattered, depth + 1);
-      #endif
-
-      #ifdef LIGHT_SAMPLING
-      return brdf * max(cos_theta, 0.0)* color(scattered, depth + 1);
-      #endif
-
-      #ifdef LIGHT_DOUBLEAXIS_SAMPLE
-      return brdf * color(scattered, depth + 1);
-      #endif
-
-      #ifdef COSINE_DOUBLEAXIS_SAMPLE
-      return brdf * color(scattered, depth + 1);
-      #endif
-
-      #ifdef Light_TRIPLEAXIS_SAMPLE
-      return brdf * color(scattered, depth + 1);
-      #endif
+  // -------------------------------------------------------------
+  // [1] 体积着色 (Volume Shading) 
+  // -------------------------------------------------------------
+  const int N = 2;                             
+  const double sigma_t = 0.2;                  // 调低浓度，避免完全变黑
+  const double g = 0.7;                         // 强前向散射，会产生明显光晕
+  vec3 L_e(2.0, 2.0, 2.0);                      
+  const double light_area = 3.0 * 3.0;          
+  
+  // x_dist 是光线与物体的交点距离
+  double x_dist = rec.t;           
+  double step_size = x_dist / N;                
+  
+  vec3 volume_L(0, 0, 0);
+  // 只有在真的碰到了物体，才计算体积反射
+  if (hit) {
+      for (int n = 0; n < N; ++n) {
+          double t_y = (n + 0.5) * step_size;
+          vec3 y = in.point_at_parameter(t_y);
+          
+          // 光源采点
+          double rand_y = 0.4 + jyorandengine.jyoRandGetReal<double>(0, 1) * 3.0;
+          double rand_z = -1.5 + jyorandengine.jyoRandGetReal<double>(0, 1) * 3.0;
+          vec3 light_p(0.0, rand_y, rand_z);
+          
+          vec3 i_dir = light_p - y;
+          double dist_sq = dot(i_dir, i_dir);
+          double dist = sqrt(dist_sq);
+          vec3 i_unit = i_dir / dist;
+          vec3 o_unit = unit_vector(-in.direction());
+          
+          double Tr_y_light = exp(-sigma_t * dist);
+          
+          // 注意这里的 -i_unit 符号修正，使得正的 g 代表前向散射
+          double cos_theta_HG = dot(-i_unit, o_unit);
+          double denom = 1.0 + g * g - 2.0 * g * cos_theta_HG;
+          double fp = (1.0 - g * g) / (4.0 * PI * pow(denom, 1.5));
+          
+          vec3 light_normal(1, 0, 0);
+          double cos_theta_light = dot(-i_unit, light_normal);
+          if (cos_theta_light < 0.0) cos_theta_light = 0.0;
+          
+          vec3 L_s = L_e * Tr_y_light * fp * (light_area * cos_theta_light / dist_sq);
+          double Tr_e_y = exp(-sigma_t * t_y);
+          
+          volume_L += Tr_e_y * L_s * (sigma_t * step_size);
+      }
     }
-    else {
-      // 光源
-      if (!depth) return vec3(10000, 10000, 10000);
-      vec3 v = unit_vector(-in.direction());
-      #ifdef COSINE_SAMPLING
-      if(dot(unit_vector(-in.direction()), vec3(1, 0, 0))>0)
-      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
-        /dot(unit_vector(-in.direction()), vec3(1, 0, 0)) / (3.4-0.4) / (3.0-0.0);
-      else
-        return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
-        /dot(unit_vector(-in.direction()), vec3(-1, 0, 0)) / (3.4-0.4) / (3.0-0.0);
-      #endif
+  
+  // -------------------------------------------------------------
+  // [2] 表面着色 (Surface Shading) 
+  // -------------------------------------------------------------
+  double T_e_x = exp(-sigma_t * x_dist);
+  vec3 surface_L(0, 0, 0);
+  
+  // 只有在真的碰到了物体，并且没有处于原代码规定的 x<0 盲区时，才计算表面反射
+  if (hit && rec.p.x() >= 0) {
+      ray scattered;
+      vec3 attenuation;
+      vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
+      
+      if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
+        double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
+        double brdf = 1.0 / PI;
+        assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
 
-      #ifdef COSINE_DOUBLEAXIS_SAMPLE
-      vec3 p2q = rec.p - in.origin();
-      axis_w = unit_vector(axis_w);
-      axis_v = unit_vector(axis_v);
-      double dam = pow( (double) dot(axis_w, unit_vector(p2q)), n1 ) * pow((double)dot(axis_v, unit_vector(p2q)), n2);
-      double rnt = 0;
-      if(dot(unit_vector(-in.direction()), vec3(1, 0, 0))>0)
-        rnt = dam/((double)dot(unit_vector(-in.direction()), vec3(1, 0, 0))/M_PI);
-      else
-        rnt = dam/((double)dot(unit_vector(-in.direction()), vec3(-1, 0, 0))/M_PI);
-      return vec3(rnt, rnt, rnt);
-      #endif
-
-      #ifdef LIGHT_SAMPLING
-      return emitted*getIntesiy(atan2(-v.y(), -v.z()) + M_PI, M_PI - acos(-v.x()))
-                                /dot(rec.p-in.origin(), rec.p-in.origin()); // I/distance^2
-      #endif
-
-      #ifdef LIGHT_DOUBLEAXIS_SAMPLE
-      vec3 p2q = rec.p - in.origin();
-      p2q = unit_vector(p2q);
-      axis_w = unit_vector(axis_w);
-      axis_v = unit_vector(axis_v);
-      long double dam_1 = pow((long double) dot(axis_w, p2q), n1);
-      long double dam_2 = pow((long double) dot(axis_v, p2q), n2);
-      //assert(dam_1 >= 0.0 && dam_2 >= 0.0);
-      long double dam = dam_1 * dam_2;
-      if(dam < 0.0)
-        dam = -dam;
-      //double dam = damF(n1, n2, axis_w, axis_v, unit_vector(p2q));
-      //std::cout << "dam: " << dam << std::endl;
-      double cos_theta_prime = dot(-p2q, vec3(0, -1, 0));
-      if(cos_theta_prime < 0.0)
-        assert(0==1);
-      if(dam < 0.0)
-        assert(0==1);
-      assert(cos_theta_prime >= 0.0 && dam >= 0.0);
-      double rnt = ((1.5-(-1.5)) * (1.5-(-1.5))*dam*cos_theta_prime)/(dot(rec.p-in.origin(), rec.p-in.origin()));
-      //rnt = gain(n1, n2, dot(axis_w, axis_v), rnt);
-      return vec3(rnt, rnt, rnt) ;
-      #endif
-
-      #ifdef Light_TRIPLEAXIS_SAMPLE
-      vec3 p2q = rec.p - in.origin();
-      p2q = unit_vector(p2q);
-      a = unit_vector(a);
-      b = unit_vector(b);
-      c = unit_vector(c);
-      std::vector<long double> coeffs = {0.144143, 52.459705, 252.970041, -178.080511, -1622.200696,
-639.303423, 6098.938332, 1807.929518, -7358.603816, -3946.905254,
-2900.519717, 1896.74305
-
-};
-      long double kinji =  600.0L / 683.0L * evalPolynomialDot(-a, p2q, coeffs) *0.115;
-      if(kinji < 0.0)
-        kinji = 0;
-      //std::cout << "kinji: " << kinji << std::endl;
-      long double tam =  kinji * (long double)dot(c, p2q);
-       //* pow( (long double)dot(b, p2q), n2) 
-      if(tam < 0.0)
-        tam = 0;
-      //double dam = damF(n1, n2, axis_w, axis_v, unit_vector(p2q));
-      //std::cout << "dam: " << dam << std::endl;
-      //double cos_theta_prime = dot(-p2q, vec3(0, -1, 0));
-      //assert(cos_theta_prime >= 0.0 && tam >= 0.0);
-      double rnt = ((1.5-(-1.5)) * (1.5-(-1.5))*tam)/(dot(rec.p-in.origin(), rec.p-in.origin()));//cos_theta_prime
-      return vec3(rnt, rnt, rnt);
-      #endif
-    }
-  } else {
-    return vec3(0, 0, 0); // 闇に射る
+        #ifdef LIGHT_SAMPLING
+        surface_L = brdf * max(cos_theta, 0.0) * L(scattered, depth + 1);
+        #endif
+      }
+      else {
+        if (!depth) {
+          surface_L = vec3(1, 1, 1);
+        }
+        else {
+          vec3 i_dir = rec.p - in.origin();
+          double dist_sq = dot(i_dir, i_dir);
+          double dist = sqrt(dist_sq);
+          vec3 i_unit = i_dir / dist;
+          
+          double Tr_x_light = exp(-sigma_t * dist);
+          double cos_theta_light = dot(-i_unit, unit_vector(rec.normal));
+          if (cos_theta_light < 0.0) cos_theta_light = 0.0;
+          
+          #ifdef LIGHT_SAMPLING
+          surface_L = emitted * Tr_x_light * (light_area * cos_theta_light / dist_sq);
+          #endif
+        }
+      }
   }
-  exit(0);
+
+  // 最终合并。如果没有 hit 到物体，surface_L 依然是 0，只返回发光的空气体积 (volume_L)
+  return volume_L + T_e_x * surface_L;
 }
+
+//颜色着色 volume rendering（不太正确）
+// vec3 L(const ray& in, int depth) {
+  
+//   #ifdef LIGHT_SAMPLING
+//     //assert(depth<2);
+//   #endif
+  
+//   hit_record rec;
+//   if (world.hitanything(in, 0.0001, DBL_MAX, rec)) {
+    
+//     // if(rec.p.x()<-0.0)
+//     //   return vec3(0, 0, 0);
+      
+//     // -------------------------------------------------------------
+//     // [新增] 体积着色 (Volume Shading) 的参数与设定
+//     // -------------------------------------------------------------
+//     const int N = 8;                             // 采样次数
+//     const double sigma_t = 0.1;                   // 衰减系数 (由于 sigma_s = sigma_t，这也充当散射系数)
+//     const double g = 0.9;                         // HG 相位函数的非对称参数 (0.0 表示各向同性)
+//     vec3 L_e(1.0, 1.0, 1.0);                      // 光源常数 L_e
+//     const double light_area = 3.0 * 3.0;          // 光源面积: y从0.4到3.4(长3), z从-1.5到1.5(宽3)
+    
+//     double x_dist = rec.t;                        // 从起点 (e) 到表面交点 (x) 的距离
+//     double step_size = x_dist / N;                // 步长 \Delta y
+    
+//     vec3 volume_L(0, 0, 0);
+    
+//     // 1. 光线步进 (Ray Marching) 计算体积积分
+//     for (int n = 0; n < N; ++n) {
+//         // y_n = (n + 0.5) / N * x
+//         double t_y = (n + 0.5) * step_size;
+//         vec3 y = in.point_at_parameter(t_y);
+        
+//         // 按照标准面积分，在面光源上随机采样点 i
+//         double rand_y = 0.4 + jyorandengine.jyoRandGetReal<double>(0, 1) * 3.0;
+//         double rand_z = -1.5 + jyorandengine.jyoRandGetReal<double>(0, 1) * 3.0;
+//         vec3 light_p(0.0, rand_y, rand_z);
+        
+//         vec3 i_dir = light_p - y;
+//         double dist_sq = dot(i_dir, i_dir);
+//         double dist = sqrt(dist_sq);
+//         vec3 i_unit = i_dir / dist;
+//         vec3 o_unit = unit_vector(-in.direction());
+        
+//         // Tr(y, i) - 点 y 到光源采样点的透射率
+//         double Tr_y_light = exp(-sigma_t * dist);
+        
+//         // HG 相位函数 f_p
+//         double cos_theta_HG = dot(i_unit, o_unit);
+//         double denom = 1.0 + g * g - 2.0 * g * cos_theta_HG;
+//         double fp = (1.0 - g * g) / (4.0 * PI * pow(denom, 1.5));
+        
+//         // 光源平面的法线 (位于 x=0 的平面，朝向正 x 轴)
+//         vec3 light_normal(1, 0, 0);
+//         double cos_theta_light = dot(-i_unit, light_normal);
+//         if (cos_theta_light < 0.0) cos_theta_light = 0.0;
+        
+//         // 内散射 L_s = L_e * \int Tr * f_p * (Area * cos_theta_light / d^2)
+//         vec3 L_s = L_e * Tr_y_light * fp * (light_area * cos_theta_light / dist_sq);
+        
+//         // Tr(e, y) - 眼睛/起点到点 y 的透射率
+//         double Tr_e_y = exp(-sigma_t * t_y);
+        
+//         // 累加到积分结果中：Tr_e_y * L_s * \sigma_s * \Delta y 
+//         // (物理上参与内散射的能量需要乘上散射系数，这里按你的要求 \sigma_s = \sigma_t)
+//         volume_L += Tr_e_y * L_s * (sigma_t * step_size);
+//     }
+    
+//     // -------------------------------------------------------------
+//     // 2. 计算表面着色 (Surface Shading) 并最终合并
+//     // -------------------------------------------------------------
+//     double T_e_x = exp(-sigma_t * x_dist);        // Tr(e, x) 眼睛/起点到最终表面 x 的透射率
+//     vec3 surface_L(0, 0, 0);
+    
+//     // 原有的材质反射和发光计算逻辑
+//     ray scattered;
+//     vec3 attenuation;
+//     vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
+    
+//     if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
+//       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
+//       double brdf = 1.0 / PI;
+//       //assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
+
+//       #ifdef LIGHT_SAMPLING
+//       surface_L = brdf * max(cos_theta, 0.0) * L(scattered, depth + 1);
+//       #endif
+//     }
+//     else {
+//       // 直接打到光源上了
+//       if (!depth) 
+//       {
+//         surface_L = vec3(1, 1, 1);
+//       }
+//       else 
+//       {
+//         // 经过一次反射打到光源上了 (depth == 1)
+//         // 此时 in.origin() 是地面的 Shading Point (x)，rec.p 是光源上打到的点 (i)
+//         vec3 i_dir = rec.p - in.origin();
+//         double dist_sq = dot(i_dir, i_dir);
+//         double dist = sqrt(dist_sq);
+//         vec3 i_unit = i_dir / dist;
+        
+//         // Tr(x, i) - Shading Point (x) 到光源点 (i) 的透射率
+//         double Tr_x_light = exp(-sigma_t * dist);
+        
+//         // 按照标准面积分，替代原本的 emitted * 50.0 / d^2
+//         double cos_theta_light = dot(-i_unit, unit_vector(rec.normal));
+//         if (cos_theta_light < 0.0) cos_theta_light = 0.0;
+        
+//         #ifdef LIGHT_SAMPLING
+//         // 结合原有的 L_r 公式，在此时刻返回来自光源的辐射贡献：
+//         // L_e(使用emitted) * Tr(x,i) * (Area * cos(theta_light) / d^2)
+//         surface_L = emitted * Tr_x_light * (light_area * cos_theta_light / dist_sq);
+//         #endif
+//       }
+//     }
+    
+//     // 最终公式合并：\int ... dy + T(e,x) * L_r(x,o)
+//     return volume_L + T_e_x * surface_L;
+    
+//   } else {
+//     return vec3(0, 0, 0); // 闇に射る (按要求直接返回全黑)
+//   }
+// }
+
+// // 颜色着色 surface shading
+// vec3 L(const ray& in, int depth) {
+  
+//   #ifdef LIGHT_SAMPLING
+//     assert(depth<2);
+//   #endif
+  
+//   hit_record rec;
+//   if (world.hitanything(in, 0.0001, DBL_MAX, rec)) {
+    
+//     if(rec.p.x()<0)
+//       return vec3(0, 0, 0);
+    
+//     // 反射光
+//     ray scattered;
+//     // 吸收度
+//     vec3 attenuation;
+//     vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
+//     if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
+//       double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
+//       double brdf = 1.0 / PI;
+//       assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
+//       //  double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
+//       //                                  unit_vector(scattered.direction()), 
+//       //                                  unit_vector(-in.direction()), 
+//       //                                  roughness, 1.0); 
+
+
+//       #ifdef LIGHT_SAMPLING
+//       return brdf * max(cos_theta, 0.0)* L(scattered, depth + 1);
+//       #endif
+//     }
+//     else {
+//       // 直接打到光源上了
+//       if (!depth) 
+//       {
+//         return vec3(1, 1, 1);
+//       }
+      
+//       // 经过一次反射打到光源上了
+//       // rec.p shading point
+//       // in.origin() 光源上一点
+//       vec3 v = unit_vector(-in.direction());
+//       #ifdef LIGHT_SAMPLING
+//       return emitted*50.0/dot(rec.p-in.origin(), rec.p-in.origin()); // I/distance^2
+//       #endif
+
+//     }
+//   } else {
+//     return vec3(0, 0, 0); // 闇に射る
+//   }
+//   exit(0);
+// }
+
+
 std::vector<shared_ptr<hitable>> worldlist;
 void buildWorld() {
   getMTNB(vec3(0,1,0));
@@ -452,8 +602,13 @@ void buildWorld() {
   // );
                                        
   worldlist.emplace_back(
-     new rectangle_xz(-40, 40, -40, 40, 0, new lambertian(whiteptr)));
+     new rectangle_xz(0, 40, -40, 40, 0, new lambertian(whiteptr)));
 
+  worldlist.emplace_back(
+     new rectangle_yz(-40, 40, -40, 40, -10, new lambertian(whiteptr)));
+
+  // 这是一个位于 x=5, y=2, z=0 的黑色/不反射球体，正好挡在相机和光源中间
+  //worldlist.emplace_back(new sphere(vec3(5, 2, 0), 1.0, new lambertian(new constant_texture(vec3(0.1, 0.1, 0.1)))));
   // 一个玻璃球与一团玻璃球形状的烟雾
   // hitable* glasssphereptr =
   //     new sphere(vec3(360, 150, 145), 70, new dielectric(1.5));
@@ -465,7 +620,7 @@ void buildWorld() {
 }
 
 int getfileline(string filename) {
-  std::ifstream file(filename + ".PPM");
+  std::ifstream file(filename + ".ppm");
   // 判断文件是否打开成功
   if (file.is_open()) {
     int line_count = 0;
@@ -479,53 +634,53 @@ int getfileline(string filename) {
 }
 
 int main() {
-  std::string err;
-  std::string warn;
+  // std::string err;
+  // std::string warn;
 
-  if (!tiny_ldt<float>::load_ldt("photometry\\" + filename, err, warn, ldt)) {
-    cout << "failed" << endl;
-  }
-  if (!err.empty()) 
-    cout << err << endl;
-  if (!warn.empty())
-    cout << warn << endl;
+  // if (!tiny_ldt<float>::load_ldt("photometry\\" + filename, err, warn, ldt)) {
+  //   cout << "failed" << endl;
+  // }
+  // if (!err.empty()) 
+  //   cout << err << endl;
+  // if (!warn.empty())
+  //   cout << warn << endl;
   
-  int cnt = 0;
-  cout << ldt.dc << endl;//15
-  cout << ldt.dg << endl;//5
+  // int cnt = 0;
+  // cout << ldt.dc << endl;//15
+  // cout << ldt.dg << endl;//5
 
-  for(float i = 0.0; i <= 360.0; i += ldt.dc){
-    // int j = i;
-    // // 105/15=7 259/37-1=6
-    // if((i/ldt.dc)>ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1 &&
-    // (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc))
-    // // 105 %= (259/37-1)=6*15
-    //   j %= (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc);
-    // else if((i/ldt.dc)>ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)
-    //   j = 0;
-    // if(i==270 && (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc>=90))
-    //   j = 90;
-    int sz = (180/ldt.dg)+1;
-    // cout << "i" << i << " j" << j << endl;
-    // cout << (int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1) << endl;
-    // cout << (int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1)+(int)(180.0/ldt.dg)+1 << endl;
-    int st = (int)(i/ldt.dc);
-    if(st*sz >= ldt.luminous_intensity_distribution.size())
-      st %= ldt.luminous_intensity_distribution.size()/sz;
-    intensityDis.emplace_back(
-        vector<float>(ldt.luminous_intensity_distribution.begin()+ st*(sz)
-                    , ldt.luminous_intensity_distribution.begin()+ st*(sz)+sz)
-    );
-  }
-  for(auto& v: intensityDis){
-    for(auto& p: v)
-       //if(jyorandengine.jyoRandGetBool(0.01))
-        // p += 100;
-      cout << p << " ";
-    cout << endl;
-  }
-  cout << intensityDis.size() << endl;
-  system("pause");
+  // for(float i = 0.0; i <= 360.0; i += ldt.dc){
+  //   // int j = i;
+  //   // // 105/15=7 259/37-1=6
+  //   // if((i/ldt.dc)>ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1 &&
+  //   // (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc))
+  //   // // 105 %= (259/37-1)=6*15
+  //   //   j %= (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc);
+  //   // else if((i/ldt.dc)>ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)
+  //   //   j = 0;
+  //   // if(i==270 && (int)((ldt.luminous_intensity_distribution.size()/((int)(180.0/ldt.dg)+1)-1)*ldt.dc>=90))
+  //   //   j = 90;
+  //   int sz = (180/ldt.dg)+1;
+  //   // cout << "i" << i << " j" << j << endl;
+  //   // cout << (int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1) << endl;
+  //   // cout << (int)(j/ldt.dc)*((int)(180.0/ldt.dg)+1)+(int)(180.0/ldt.dg)+1 << endl;
+  //   int st = (int)(i/ldt.dc);
+  //   if(st*sz >= ldt.luminous_intensity_distribution.size())
+  //     st %= ldt.luminous_intensity_distribution.size()/sz;
+  //   intensityDis.emplace_back(
+  //       vector<float>(ldt.luminous_intensity_distribution.begin()+ st*(sz)
+  //                   , ldt.luminous_intensity_distribution.begin()+ st*(sz)+sz)
+  //   );
+  // }
+  // for(auto& v: intensityDis){
+  //   for(auto& p: v)
+  //      //if(jyorandengine.jyoRandGetBool(0.01))
+  //       // p += 100;
+  //     cout << p << " ";
+  //   cout << endl;
+  // }
+  // cout << intensityDis.size() << endl;
+  // system("pause");
   
   
   // 是否重新渲染
@@ -536,9 +691,9 @@ int main() {
   ofstream mout;
   filename += to_string(roughness);
   if (startoveragain)
-    mout.open(filename + ".PPM");
+    mout.open(filename + ".ppm");
   else
-    mout.open(filename + ".PPM", ios::app);
+    mout.open(filename + ".ppm", ios::app);
 
 
   buildWorld();
@@ -581,7 +736,7 @@ int main() {
 
           // 一条射向画布上点(u,v)的光线，注意(u,v)不是真实坐标而是在画布上的比例位置
           ray r = cam.get_ray(u, v);
-          col += color(r, 0);
+          col += L(r, 0);
         }
       // 取颜色的平均值
       col /= double(ns);
@@ -620,7 +775,7 @@ int main() {
   //       //
   //       一条射向画布上点(u,v)的光线，注意(u,v)不是真实坐标而是在画布上的比例位置
   //       ray r = cam.get_ray(u, v);
-  //       col += color(r, 0);
+  //       col += L(r, 0);
   //     }
   //     // 取颜色的平均值
   //     col /= double(ns);
