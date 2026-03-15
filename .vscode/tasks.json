@@ -14,7 +14,10 @@
 				"-o",
 				"${fileDirname}\\${fileBasenameNoExtension}.exe",
 				"-L.",
-				"-lkuinkerm"
+				"-lkuinkerm",
+				"-static-libgcc",
+				"-static-libstdc++",
+				"--static"
 			],
 			"options": {
 				"cwd": "${fileDirname}"
