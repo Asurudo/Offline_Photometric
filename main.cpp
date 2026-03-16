@@ -56,7 +56,7 @@ vec3 c(0,1,0);
 #endif
 
 std::string filename = "ARCOS3_60712332.LDT";
-double roughness = 0.9;
+double roughness = 0.2;
 //vec3 lookfrom(0, 40, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
 vec3 lookfrom(15, 2, 0), lookat(0, 2, 0);
@@ -297,9 +297,9 @@ vec3 L(const ray& in, int depth) {
   // [1] 体积着色 (Volume Shading) 
   // -------------------------------------------------------------
   const int N = 2;                             
-  const double sigma_t = 0.2;                  // 调低浓度，避免完全变黑
-  const double g = 0.7;                         // 强前向散射，会产生明显光晕
-  vec3 L_e(2.0, 2.0, 2.0);                      
+  const double sigma_t = 0.1;                  // 调低浓度，避免完全变黑
+  const double g = 0.8;                         // 强前向散射，会产生明显光晕
+  vec3 L_e(10.0, 10.0, 10.0);                      
   const double light_area = 3.0 * 3.0;          
   
   // x_dist 是光线与物体的交点距离
@@ -356,7 +356,11 @@ vec3 L(const ray& in, int depth) {
       
       if (depth < 5 && rec.mat_ptr->scatter(in, rec, attenuation, scattered)){
         double cos_theta = dot(unit_vector(rec.normal), unit_vector(scattered.direction()));
-        double brdf = 1.0 / PI;
+        //double brdf = 1.0 / PI;
+        double brdf = BRDF_Specular_GGX(unit_vector(rec.normal), 
+                                        unit_vector(scattered.direction()), 
+                                        unit_vector(-in.direction()), 
+                                        roughness, 1.0); 
         assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
 
         #ifdef LIGHT_SAMPLING
@@ -378,7 +382,7 @@ vec3 L(const ray& in, int depth) {
           if (cos_theta_light < 0.0) cos_theta_light = 0.0;
           
           #ifdef LIGHT_SAMPLING
-          surface_L = emitted * Tr_x_light * (light_area * cos_theta_light / dist_sq);
+          surface_L = L_e * Tr_x_light * (light_area * cos_theta_light / dist_sq);
           #endif
         }
       }
