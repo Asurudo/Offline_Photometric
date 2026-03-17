@@ -56,7 +56,7 @@ vec3 c(0,1,0);
 #endif
 
 std::string filename = "ARCOS3_60712332.LDT";
-double roughness = 0.2;
+double roughness = 0.5;
 //vec3 lookfrom(0, 40, 0), lookat(0.0001, 0, 0);
 // vec3 lookfrom(25, 15, 20), lookat(0, 0, 0.029);
 vec3 lookfrom(15, 2, 0), lookat(0, 2, 0);
@@ -296,9 +296,9 @@ vec3 L(const ray& in, int depth) {
   // -------------------------------------------------------------
   // [1] 体积着色 (Volume Shading) 
   // -------------------------------------------------------------
-  const int N = 2;                             
+  const int N = 8;                             
   const double sigma_t = 0.1;                  // 调低浓度，避免完全变黑
-  const double g = 0.8;                         // 强前向散射，会产生明显光晕
+  const double g = 0.2;                         // 强前向散射，会产生明显光晕
   vec3 L_e(10.0, 10.0, 10.0);                      
   const double light_area = 3.0 * 3.0;          
   
@@ -364,12 +364,13 @@ vec3 L(const ray& in, int depth) {
         assert(rec.normal.x()==0 && rec.normal.y()==1 && rec.normal.z()==0);
 
         #ifdef LIGHT_SAMPLING
-        surface_L = brdf * max(cos_theta, 0.0) * L(scattered, depth + 1);
+        surface_L = brdf * L(scattered, depth + 1);
         #endif
       }
       else {
         if (!depth) {
-          surface_L = vec3(1, 1, 1);
+          //surface_L = vec3(1, 1, 1);
+          return volume_L + vec3(1, 1, 1);
         }
         else {
           vec3 i_dir = rec.p - in.origin();
@@ -609,7 +610,7 @@ void buildWorld() {
      new rectangle_xz(0, 40, -40, 40, 0, new lambertian(whiteptr)));
 
   worldlist.emplace_back(
-     new rectangle_yz(-40, 40, -40, 40, -10, new lambertian(whiteptr)));
+     new rectangle_yz(-40, 40, -40, 40, -0.01, new lambertian(whiteptr)));
 
   // 这是一个位于 x=5, y=2, z=0 的黑色/不反射球体，正好挡在相机和光源中间
   //worldlist.emplace_back(new sphere(vec3(5, 2, 0), 1.0, new lambertian(new constant_texture(vec3(0.1, 0.1, 0.1)))));
